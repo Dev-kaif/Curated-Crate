@@ -2,9 +2,9 @@
 
 import type React from "react"
 
-import { Navigation } from "@/components/Navbar"
-import { Footer } from "@/components/footer"
-import { SearchOverlay } from "@/components/search-overlay"
+import { Navigation } from "@/components/Layout/Navbar"
+import { Footer } from "@/components/Layout/footer"
+import { SearchOverlay } from "@/components/Layout/search-overlay"
 
 interface PageLayoutProps {
   children: React.ReactNode
