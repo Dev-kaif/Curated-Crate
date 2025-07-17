@@ -1,136 +1,100 @@
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
-import { useState, useMemo } from "react"
-import { Filter, Grid, List } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Slider } from "@/components/ui/slider"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { PageLayout } from "@/components/Layout/page-layout"
-import { useStore, type Product } from "@/contexts/store-context"
-import Link from "next/link"
-
-// Mock product data
-const mockProducts: Product[] = [
-  {
-    id: "1",
-    name: "Lavender Candle",
-    price: 24,
-    image: "/placeholder.svg?height=300&width=300",
-    category: "Wellness",
-    description: "Hand-poured soy candle with natural lavender essential oil",
-  },
-  {
-    id: "2",
-    name: "Artisan Chocolate",
-    price: 18,
-    image: "/placeholder.svg?height=300&width=300",
-    category: "Gourmet",
-    description: "Small-batch dark chocolate with sea salt",
-  },
-  {
-    id: "3",
-    name: "Herbal Tea Set",
-    price: 32,
-    image: "/placeholder.svg?height=300&width=300",
-    category: "Gourmet",
-    description: "Organic herbal tea blend collection",
-  },
-  {
-    id: "4",
-    name: "Hand Cream",
-    price: 16,
-    image: "/placeholder.svg?height=300&width=300",
-    category: "Wellness",
-    description: "Moisturizing hand cream with shea butter",
-  },
-  {
-    id: "5",
-    name: "Leather Notebook",
-    price: 22,
-    image: "/placeholder.svg?height=300&width=300",
-    category: "Stationery",
-    description: "Handbound leather journal with lined pages",
-  },
-  {
-    id: "6",
-    name: "Bath Salts",
-    price: 20,
-    image: "/placeholder.svg?height=300&width=300",
-    category: "Wellness",
-    description: "Himalayan pink salt with eucalyptus",
-  },
-  {
-    id: "7",
-    name: "Coffee Beans",
-    price: 28,
-    image: "/placeholder.svg?height=300&width=300",
-    category: "Gourmet",
-    description: "Single-origin coffee beans, medium roast",
-  },
-  {
-    id: "8",
-    name: "Artisan Soap",
-    price: 14,
-    image: "/placeholder.svg?height=300&width=300",
-    category: "Wellness",
-    description: "Natural soap bar with olive oil and herbs",
-  },
-]
+import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { Filter, ShoppingBag } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { PageLayout } from "@/components/Layout/page-layout";
+import { useStore, type Product } from "@/contexts/store-context";
+import Link from "next/link";
+import axios from "axios";
 
 const ProductCard = ({ product }: { product: Product }) => {
-  const { dispatch } = useStore()
+  const { addToCart } = useStore();
+  const [isAdding, setIsAdding] = useState(false);
+
+  const handleAddToCart = async () => {
+    setIsAdding(true);
+    try {
+      await addToCart(product.id, 1);
+      // You can add a success toast notification here
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      // You can add an error toast notification here
+    } finally {
+      setIsAdding(false);
+    }
+  };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -5 }}
-      transition={{ duration: 0.3 }}
-    >
-      <Card className="overflow-hidden bg-background border-0 shadow-lg hover:shadow-xl transition-all duration-300 group">
-        <Link href={`/shop/details/${product.id}`}>
-          <div className="aspect-square bg-gradient-to-br from-primary/10 to-primary/5 relative overflow-hidden">
-            <img
-              src={product.image || "/placeholder.svg"}
-              alt={product.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-          </div>
-        </Link>
-        <CardContent className="p-6">
+    <Link href={`/shop/details/${product.id}`}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ y: -5 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Card className="overflow-hidden bg-background border-0 shadow-lg hover:shadow-xl transition-all duration-300 group">
           <Link href={`/shop/details/${product.id}`}>
-            <h3 className="font-serif font-bold text-lg text-foreground mb-2 hover:text-primary transition-colors">
+            <div className="aspect-square bg-gradient-to-br from-primary/10 to-primary/5 relative overflow-hidden">
+              <img
+                src={product.images[0] || "/placeholder.svg"}
+                alt={product.name}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+          </Link>
+          <CardContent className="p-6">
+            <h3 className="font-serif font-bold text-lg text-foreground mb-2 hover:text-primary transition-colors truncate">
               {product.name}
             </h3>
-          </Link>
-          <p className="text-foreground/60 text-sm mb-3 line-clamp-2">{product.description}</p>
-          <div className="flex items-center justify-between">
-            <p className="text-primary font-bold text-xl">${product.price}</p>
-            <Button
-              onClick={() => dispatch({ type: "ADD_TO_CART", product })}
-              size="sm"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-4"
-            >
-              Add to Box
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  )
-}
+            <p className="text-foreground/60 text-sm mb-3 line-clamp-2 h-10">
+              {product.description}
+            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-primary font-bold text-xl">
+                ${product.price.toFixed(2)}
+              </p>
+              <Button
+                onClick={handleAddToCart}
+                size="sm"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-4"
+                disabled={isAdding}
+              >
+                {isAdding ? (
+                  "Adding..."
+                ) : (
+                  <>
+                    <ShoppingBag className="w-4 h-4 mr-2" /> Add to Box
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </Link>
+  );
+};
 
 const Pagination = ({
   currentPage,
   totalPages,
   onPageChange,
 }: {
-  currentPage: number
-  totalPages: number
-  onPageChange: (page: number) => void
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
 }) => {
   return (
     <div className="flex items-center justify-center space-x-2 mt-12">
@@ -148,7 +112,9 @@ const Pagination = ({
           key={page}
           variant={currentPage === page ? "default" : "outline"}
           onClick={() => onPageChange(page)}
-          className={`w-10 h-10 rounded-full ${currentPage === page ? "bg-primary text-primary-foreground" : ""}`}
+          className={`w-10 h-10 rounded-full ${
+            currentPage === page ? "bg-primary text-primary-foreground" : ""
+          }`}
         >
           {page}
         </Button>
@@ -163,76 +129,104 @@ const Pagination = ({
         Next
       </Button>
     </div>
-  )
-}
+  );
+};
 
 export default function ShopPage() {
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
-  const [priceRange, setPriceRange] = useState([0, 50])
-  const [sortBy, setSortBy] = useState("popularity")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
-  const itemsPerPage = 8
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const categories = ["Gourmet", "Wellness", "Stationery"]
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [priceRange, setPriceRange] = useState([0, 100]);
+  const [sortBy, setSortBy] = useState("popularity");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const itemsPerPage = 8;
 
-  const filteredProducts = useMemo(() => {
-    const filtered = mockProducts.filter((product) => {
-      const categoryMatch = selectedCategories.length === 0 || selectedCategories.includes(product.category)
-      const priceMatch = product.price >= priceRange[0] && product.price <= priceRange[1]
-      return categoryMatch && priceMatch
-    })
+  const categories = [
+    "Gourmet",
+    "Wellness",
+    "Stationery",
+    "Home Goods",
+    "Apparel",
+  ];
 
-    // Sort products
-    switch (sortBy) {
-      case "price-low":
-        filtered.sort((a, b) => a.price - b.price)
-        break
-      case "price-high":
-        filtered.sort((a, b) => b.price - a.price)
-        break
-      case "name":
-        filtered.sort((a, b) => a.name.localeCompare(b.name))
-        break
-      default:
-        // Keep original order for popularity
-        break
-    }
+  // Inside your ShopPage component
 
-    return filtered
-  }, [selectedCategories, priceRange, sortBy])
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const { data } = await axios.get("/api/products", {
+          params: {
+            page: currentPage,
+            limit: itemsPerPage,
+            sortBy,
+            minPrice: priceRange[0],
+            maxPrice: priceRange[1],
+            categories: selectedCategories.join(","),
+          },
+        });
 
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
-  const paginatedProducts = filteredProducts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+        if (data && data.products) {
+          const formattedProducts = data.products.map((p: any) => ({
+            ...p,
+            id: p._id,
+          }));
+          setProducts(formattedProducts);
+          setTotalPages(data.totalPages);
+          setTotalProducts(data.totalProducts);
+        } else {
+          throw new Error("Received invalid data from server.");
+        }
+      } catch (err: any) {
+        const errorMessage = axios.isAxiosError(err)
+          ? err.response?.data?.message || err.message
+          : err.message;
+        setError(errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [currentPage, selectedCategories, priceRange, sortBy]);
 
   const handleCategoryChange = (category: string, checked: boolean) => {
-    if (checked) {
-      setSelectedCategories([...selectedCategories, category])
-    } else {
-      setSelectedCategories(selectedCategories.filter((c) => c !== category))
-    }
-    setCurrentPage(1)
-  }
+    setSelectedCategories((prev) =>
+      checked ? [...prev, category] : prev.filter((c) => c !== category)
+    );
+    setCurrentPage(1);
+  };
+
+  const handlePriceChange = (newRange: number[]) => {
+    setPriceRange(newRange);
+    setCurrentPage(1);
+  };
 
   return (
     <PageLayout>
       <div className="py-12 px-6">
         <div className="container mx-auto">
-          {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
             className="text-center mb-12"
           >
-            <h1 className="text-4xl lg:text-5xl font-serif font-bold text-foreground mb-4">Explore Our Collection</h1>
+            <h1 className="text-4xl lg:text-5xl font-serif font-bold text-foreground mb-4">
+              Explore Our Collection
+            </h1>
             <p className="text-xl text-foreground/70 max-w-2xl mx-auto">
-              Discover handcrafted items from independent artisans to build your perfect gift box
+              Discover handcrafted items from independent artisans to build your
+              perfect gift box
             </p>
           </motion.div>
 
           <div className="grid lg:grid-cols-4 gap-8">
-            {/* Sidebar - Filters */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
@@ -243,21 +237,32 @@ export default function ShopPage() {
                 <div className="space-y-6">
                   <div className="flex items-center space-x-2">
                     <Filter className="w-5 h-5 text-primary" />
-                    <h3 className="font-serif font-bold text-lg text-foreground">Filters</h3>
+                    <h3 className="font-serif font-bold text-lg text-foreground">
+                      Filters
+                    </h3>
                   </div>
 
-                  {/* Category Filter */}
                   <div>
-                    <h4 className="font-medium text-foreground mb-3">Category</h4>
+                    <h4 className="font-medium text-foreground mb-3">
+                      Category
+                    </h4>
                     <div className="space-y-2">
                       {categories.map((category) => (
-                        <div key={category} className="flex items-center space-x-2">
+                        <div
+                          key={category}
+                          className="flex items-center space-x-2"
+                        >
                           <Checkbox
                             id={category}
                             checked={selectedCategories.includes(category)}
-                            onCheckedChange={(checked) => handleCategoryChange(category, checked as boolean)}
+                            onCheckedChange={(checked) =>
+                              handleCategoryChange(category, checked as boolean)
+                            }
                           />
-                          <label htmlFor={category} className="text-sm text-foreground/70 cursor-pointer">
+                          <label
+                            htmlFor={category}
+                            className="text-sm text-foreground/70 cursor-pointer"
+                          >
                             {category}
                           </label>
                         </div>
@@ -265,28 +270,26 @@ export default function ShopPage() {
                     </div>
                   </div>
 
-                  {/* Price Filter */}
                   <div>
                     <h4 className="font-medium text-foreground mb-3">
                       Price Range: ${priceRange[0]} - ${priceRange[1]}
                     </h4>
                     <Slider
                       value={priceRange}
-                      onValueChange={setPriceRange}
-                      max={50}
+                      onValueChange={handlePriceChange}
+                      max={100}
                       min={0}
-                      step={1}
+                      step={5}
                       className="w-full"
                     />
                   </div>
 
-                  {/* Clear Filters */}
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setSelectedCategories([])
-                      setPriceRange([0, 50])
-                      setCurrentPage(1)
+                      setSelectedCategories([]);
+                      setPriceRange([0, 100]);
+                      setCurrentPage(1);
                     }}
                     className="w-full rounded-full"
                   >
@@ -296,9 +299,7 @@ export default function ShopPage() {
               </Card>
             </motion.div>
 
-            {/* Main Content */}
             <div className="lg:col-span-3">
-              {/* Sort and View Controls */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -306,7 +307,7 @@ export default function ShopPage() {
                 className="flex items-center justify-between mb-8"
               >
                 <p className="text-foreground/70">
-                  Showing {paginatedProducts.length} of {filteredProducts.length} products
+                  Showing {products.length} of {totalProducts} products
                 </p>
 
                 <div className="flex items-center space-x-4">
@@ -316,62 +317,53 @@ export default function ShopPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="popularity">Popularity</SelectItem>
-                      <SelectItem value="price-low">Price: Low to High</SelectItem>
-                      <SelectItem value="price-high">Price: High to Low</SelectItem>
+                      <SelectItem value="price-low">
+                        Price: Low to High
+                      </SelectItem>
+                      <SelectItem value="price-high">
+                        Price: High to Low
+                      </SelectItem>
                       <SelectItem value="name">Name</SelectItem>
                     </SelectContent>
                   </Select>
-
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant={viewMode === "grid" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setViewMode("grid")}
-                      className="p-2 rounded-full"
-                    >
-                      <Grid className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant={viewMode === "list" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setViewMode("list")}
-                      className="p-2 rounded-full"
-                    >
-                      <List className="w-4 h-4" />
-                    </Button>
-                  </div>
                 </div>
               </motion.div>
 
-              {/* Products Grid */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-                className={`grid gap-6 ${
-                  viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
-                }`}
-              >
-                {paginatedProducts.map((product, index) => (
-                  <motion.div
-                    key={product.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: index * 0.1 }}
-                  >
-                    <ProductCard product={product} />
-                  </motion.div>
-                ))}
-              </motion.div>
+              {isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[...Array(itemsPerPage)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="aspect-square bg-foreground/5 rounded-lg animate-pulse"
+                    />
+                  ))}
+                </div>
+              ) : error ? (
+                <div className="text-center text-destructive">{error}</div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.8, delay: 0.4 }}
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                >
+                  {products.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </motion.div>
+              )}
 
-              {/* Pagination */}
               {totalPages > 1 && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.5 }}
                 >
-                  <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                  />
                 </motion.div>
               )}
             </div>
@@ -379,5 +371,5 @@ export default function ShopPage() {
         </div>
       </div>
     </PageLayout>
-  )
+  );
 }
