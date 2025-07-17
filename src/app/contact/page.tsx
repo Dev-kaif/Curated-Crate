@@ -1,15 +1,15 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { motion } from "framer-motion"
-import { useState } from "react"
-import { Mail, Phone, MapPin, Clock } from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { PageLayout } from "@/components/Layout/page-layout"
+import type React from "react";
+import { motion } from "framer-motion";
+import { useState } from "react";
+import { Mail, Phone, MapPin, Clock } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { PageLayout } from "@/components/Layout/page-layout";
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -17,13 +17,39 @@ export default function ContactPage() {
     email: "",
     subject: "",
     message: "",
-  })
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Handle form submission
-    console.log("Contact form submitted:", formData)
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Something went wrong");
+      }
+
+      setSuccess(data.message);
+      // Reset form after successful submission
+      setFormData({ name: "", email: "", subject: "", message: "" });
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const contactInfo = [
     {
@@ -50,7 +76,7 @@ export default function ContactPage() {
       content: "Monday - Friday: 9am - 6pm PST",
       description: "Closed weekends and holidays",
     },
-  ]
+  ];
 
   return (
     <PageLayout>
@@ -63,9 +89,12 @@ export default function ContactPage() {
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
-            <h1 className="text-4xl lg:text-5xl font-serif font-bold text-foreground mb-6">Get in Touch</h1>
+            <h1 className="text-4xl lg:text-5xl font-serif font-bold text-foreground mb-6">
+              Get in Touch
+            </h1>
             <p className="text-xl text-foreground/70 max-w-2xl mx-auto">
-              Have a question about our products or need help with your order? We're here to help!
+              Have a question about our products or need help with your order?
+              We're here to help!
             </p>
           </motion.div>
 
@@ -78,7 +107,9 @@ export default function ContactPage() {
               className="space-y-8"
             >
               <div>
-                <h2 className="text-2xl font-serif font-bold text-foreground mb-6">Contact Information</h2>
+                <h2 className="text-2xl font-serif font-bold text-foreground mb-6">
+                  Contact Information
+                </h2>
                 <div className="space-y-6">
                   {contactInfo.map((info, index) => (
                     <motion.div
@@ -94,9 +125,15 @@ export default function ContactPage() {
                               <info.icon className="w-6 h-6 text-primary" />
                             </div>
                             <div>
-                              <h3 className="font-serif font-bold text-lg text-foreground mb-1">{info.title}</h3>
-                              <p className="text-foreground font-medium mb-1">{info.content}</p>
-                              <p className="text-foreground/60 text-sm">{info.description}</p>
+                              <h3 className="font-serif font-bold text-lg text-foreground mb-1">
+                                {info.title}
+                              </h3>
+                              <p className="text-foreground font-medium mb-1">
+                                {info.content}
+                              </p>
+                              <p className="text-foreground/60 text-sm">
+                                {info.description}
+                              </p>
                             </div>
                           </div>
                         </CardContent>
@@ -115,16 +152,32 @@ export default function ContactPage() {
             >
               <Card className="bg-background border-0 shadow-lg">
                 <CardContent className="p-8">
-                  <h2 className="text-2xl font-serif font-bold text-foreground mb-6">Send us a Message</h2>
+                  <h2 className="text-2xl font-serif font-bold text-foreground mb-6">
+                    Send us a Message
+                  </h2>
                   <form onSubmit={handleSubmit} className="space-y-6">
+                    {error && (
+                      <div className="bg-destructive/10 text-destructive p-3 rounded-md text-center text-sm">
+                        {error}
+                      </div>
+                    )}
+                    {success && (
+                      <div className="bg-green-500/10 text-green-600 p-3 rounded-md text-center text-sm">
+                        {success}
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Label htmlFor="name">Full Name</Label>
                       <Input
                         id="name"
                         value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, name: e.target.value })
+                        }
                         className="rounded-full border-foreground/20 focus:border-primary"
                         required
+                        disabled={isLoading}
                       />
                     </div>
 
@@ -134,9 +187,12 @@ export default function ContactPage() {
                         id="email"
                         type="email"
                         value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, email: e.target.value })
+                        }
                         className="rounded-full border-foreground/20 focus:border-primary"
                         required
+                        disabled={isLoading}
                       />
                     </div>
 
@@ -145,9 +201,12 @@ export default function ContactPage() {
                       <Input
                         id="subject"
                         value={formData.subject}
-                        onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, subject: e.target.value })
+                        }
                         className="rounded-full border-foreground/20 focus:border-primary"
                         required
+                        disabled={isLoading}
                       />
                     </div>
 
@@ -157,17 +216,21 @@ export default function ContactPage() {
                         id="message"
                         rows={5}
                         value={formData.message}
-                        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                        className="border-foreground/20 focus:border-primary resize-none"
+                        onChange={(e) =>
+                          setFormData({ ...formData, message: e.target.value })
+                        }
+                        className="border-foreground/20 focus:border-primary resize-none rounded-2xl"
                         required
+                        disabled={isLoading}
                       />
                     </div>
 
                     <Button
                       type="submit"
                       className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-lg font-medium rounded-full"
+                      disabled={isLoading}
                     >
-                      Send Message
+                      {isLoading ? "Sending..." : "Send Message"}
                     </Button>
                   </form>
                 </CardContent>
@@ -177,5 +240,5 @@ export default function ContactPage() {
         </div>
       </div>
     </PageLayout>
-  )
+  );
 }
