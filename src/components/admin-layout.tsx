@@ -1,12 +1,12 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
-import { useRouter, usePathname } from "next/navigation"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import type React from "react";
+import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { useSession, signOut } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   LayoutDashboard,
   Package,
@@ -18,7 +18,7 @@ import {
   Megaphone,
   Menu,
   LogOut,
-} from "lucide-react"
+} from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -28,35 +28,38 @@ const navigation = [
   { name: "Customers", href: "/admin/customers", icon: Users },
   { name: "Marketing", href: "/admin/marketing", icon: Megaphone },
   { name: "Analytics", href: "/admin/analytics", icon: TrendingUp },
-  { name: "Content", href: "/admin/content", icon: FileText },
-]
+];
 
 interface AdminLayoutProps {
-  children: React.ReactNode
-  title: string
+  children: React.ReactNode;
+  title: string;
 }
 
 export function AdminLayout({ children, title }: AdminLayoutProps) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-
+  const router = useRouter();
+  const pathname = usePathname();
+  const { data: session, status } = useSession();
+  
+  
   useEffect(() => {
-    const auth = localStorage.getItem("adminAuth")
-    if (!auth) {
-      router.push("/admin/login")
-    } else {
-      setIsAuthenticated(true)
+    if (status === "loading") return; 
+    if (status === "unauthenticated" || session?.user?.role !== "admin") {
+      router.push("/admin/login");
     }
-  }, [router])
+  }, [session, status, router]);
 
   const handleLogout = () => {
-    localStorage.removeItem("adminAuth")
-    router.push("/admin/login")
-  }
+    signOut({ callbackUrl: "/admin/login" });
+  };
 
-  if (!isAuthenticated) {
-    return null
+  // While session is loading or if user is not an authenticated admin, show a loader or nothing
+  if (status === "loading" || !session || session.user.role !== "admin") {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        {/* You can add a spinner or skeleton loader here */}
+        <p>Loading...</p>
+      </div>
+    );
   }
 
   const Sidebar = ({ className = "" }: { className?: string }) => (
@@ -68,19 +71,21 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
 
       <nav className="flex-1 p-4 space-y-2">
         {navigation.map((item) => {
-          const isActive = pathname === item.href
+          const isActive = pathname === item.href;
           return (
             <Link
               key={item.name}
               href={item.href}
               className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                isActive ? "bg-gray-100 text-gray-900" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                isActive
+                  ? "bg-gray-100 text-gray-900"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               }`}
             >
               <item.icon className="w-5 h-5 mr-3" />
               {item.name}
             </Link>
-          )
+          );
         })}
       </nav>
 
@@ -95,7 +100,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
         </Button>
       </div>
     </div>
-  )
+  );
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -107,7 +112,11 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
       {/* Mobile Sidebar */}
       <Sheet>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="md:hidden fixed top-4 left-4 z-50">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden fixed top-4 left-4 z-50"
+          >
             <Menu className="h-6 w-6" />
           </Button>
         </SheetTrigger>
@@ -122,7 +131,9 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-500">Welcome, Admin</span>
+              <span className="text-sm text-gray-500">
+                Welcome, {session.user.name}
+              </span>
             </div>
           </div>
         </header>
@@ -130,5 +141,5 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
         <main className="flex-1 overflow-auto p-6">{children}</main>
       </div>
     </div>
-  )
+  );
 }

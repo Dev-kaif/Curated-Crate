@@ -74,22 +74,3 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// Handler for creating a new product (Admin only) - remains the same
-export async function POST(req: NextRequest) {
-  const authResult = await authenticateAndAuthorize(req, "admin");
-  if (authResult.response) {
-    return authResult.response;
-  }
-
-  await dbConnect();
-  try {
-    const body = await req.json();
-    const newProduct = await Product.create(body);
-    return NextResponse.json(newProduct, { status: 201 });
-  } catch (error) {
-    return NextResponse.json(
-      { message: "Error creating product", error },
-      { status: 500 }
-    );
-  }
-}

@@ -1,121 +1,114 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { AdminLayout } from "@/components/admin-layout"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Eye, Filter } from "lucide-react"
-
-const orders = [
-  {
-    id: "#ORD-001",
-    customer: "Sarah Johnson",
-    email: "sarah@example.com",
-    date: "2024-01-15",
-    status: "Processing",
-    total: "$89.99",
-    items: 3,
-  },
-  {
-    id: "#ORD-002",
-    customer: "Mike Chen",
-    email: "mike@example.com",
-    date: "2024-01-14",
-    status: "Shipped",
-    total: "$124.50",
-    items: 2,
-  },
-  {
-    id: "#ORD-003",
-    customer: "Emma Davis",
-    email: "emma@example.com",
-    date: "2024-01-14",
-    status: "Delivered",
-    total: "$67.25",
-    items: 1,
-  },
-  {
-    id: "#ORD-004",
-    customer: "James Wilson",
-    email: "james@example.com",
-    date: "2024-01-13",
-    status: "Processing",
-    total: "$156.75",
-    items: 4,
-  },
-  {
-    id: "#ORD-005",
-    customer: "Lisa Brown",
-    email: "lisa@example.com",
-    date: "2024-01-13",
-    status: "Shipped",
-    total: "$98.00",
-    items: 2,
-  },
-  {
-    id: "#ORD-006",
-    customer: "David Miller",
-    email: "david@example.com",
-    date: "2024-01-12",
-    status: "Processing",
-    total: "$203.45",
-    items: 5,
-  },
-  {
-    id: "#ORD-007",
-    customer: "Anna Garcia",
-    email: "anna@example.com",
-    date: "2024-01-12",
-    status: "Delivered",
-    total: "$78.90",
-    items: 1,
-  },
-  {
-    id: "#ORD-008",
-    customer: "Tom Anderson",
-    email: "tom@example.com",
-    date: "2024-01-11",
-    status: "Cancelled",
-    total: "$145.20",
-    items: 3,
-  },
-]
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "Processing":
-      return "bg-yellow-100 text-yellow-800 border-yellow-200"
-    case "Shipped":
-      return "bg-blue-100 text-blue-800 border-blue-200"
-    case "Delivered":
-      return "bg-green-100 text-green-800 border-green-200"
-    case "Cancelled":
-      return "bg-red-100 text-red-800 border-red-200"
-    default:
-      return "bg-gray-100 text-gray-800 border-gray-200"
-  }
-}
+import { useState, useEffect, useCallback } from "react";
+import { AdminLayout } from "@/components/admin-layout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Search, Eye, Filter } from "lucide-react";
+import { IOrder, OrderStatus } from "@/types";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useDebounce } from "@/hooks/use-debounce";
 
 export default function OrderManagement() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [orderData, setOrderData] = useState(orders)
+  const [orders, setOrders] = useState<IOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+  });
 
-  const handleStatusChange = (orderId: string, newStatus: string) => {
-    setOrderData((prev) => prev.map((order) => (order.id === orderId ? { ...order, status: newStatus } : order)))
-  }
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  const filteredOrders = orderData.filter((order) => {
-    const matchesSearch =
-      order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || order.status.toLowerCase() === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "processing":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "shipped":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "delivered":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "cancelled":
+        return "bg-red-100 text-red-800 border-red-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  const fetchOrders = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (debouncedSearchTerm) params.append("search", debouncedSearchTerm);
+      if (statusFilter !== "all") params.append("status", statusFilter);
+      params.append("page", pagination.currentPage.toString());
+
+      const res = await fetch(`/api/admin/orders?${params.toString()}`);
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.message || "Failed to fetch orders");
+      }
+      setOrders(data.data);
+      setPagination(data.pagination);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [debouncedSearchTerm, statusFilter, pagination.currentPage]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  const handleStatusChange = async (
+    orderId: string,
+    newStatus: OrderStatus
+  ) => {
+    setOrders((prev) =>
+      prev.map((order) =>
+        order._id === orderId ? { ...order, orderStatus: newStatus } : order
+      )
+    );
+
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderStatus: newStatus }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.message || "Failed to update status");
+      }
+      // Re-fetch to confirm change and get latest data
+      fetchOrders();
+    } catch (err: any) {
+      setError(err.message);
+      // Revert optimistic update on error
+      fetchOrders();
+    }
+  };
 
   return (
     <AdminLayout title="Order Management">
@@ -125,7 +118,7 @@ export default function OrderManagement() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
-              placeholder="Search orders, customers, or order IDs..."
+              placeholder="Search by Order ID, customer..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -138,6 +131,7 @@ export default function OrderManagement() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="processing">Processing</SelectItem>
               <SelectItem value="shipped">Shipped</SelectItem>
               <SelectItem value="delivered">Delivered</SelectItem>
@@ -161,54 +155,108 @@ export default function OrderManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.id}</TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{order.customer}</div>
-                      <div className="text-sm text-gray-500">{order.email}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
-                  <TableCell>{order.items} items</TableCell>
-                  <TableCell className="font-medium">{order.total}</TableCell>
-                  <TableCell>
-                    <Select
-                      value={order.status.toLowerCase()}
-                      onValueChange={(value) => handleStatusChange(order.id, value)}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue>
-                          <Badge className={`${getStatusColor(order.status)} border`}>{order.status}</Badge>
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="processing">Processing</SelectItem>
-                        <SelectItem value="shipped">Shipped</SelectItem>
-                        <SelectItem value="delivered">Delivered</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm">
-                      <Eye className="h-4 w-4 mr-2" />
-                      View Details
-                    </Button>
+              {isLoading ? (
+                [...Array(5)].map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-32" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-20" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-12" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-16" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-8 w-28" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-8 w-24" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : error ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-red-500">
+                    {error}
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : orders.length > 0 ? (
+                orders.map((order: any) => (
+                  <TableRow key={order._id}>
+                    <TableCell className="font-medium">
+                      #{order._id.slice(-6).toUpperCase()}
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">
+                          {order.userId?.name || "N/A"}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {order.userId?.email || "N/A"}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(order.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>{order.items.length} items</TableCell>
+                    <TableCell className="font-medium">
+                      ${order.totalPrice.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={order.orderStatus}
+                        onValueChange={(value) =>
+                          handleStatusChange(order._id, value as OrderStatus)
+                        }
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue>
+                            <Badge
+                              className={`${getStatusColor(order.orderStatus)} border`}
+                            >
+                              {order.orderStatus}
+                            </Badge>
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="processing">Processing</SelectItem>
+                          <SelectItem value="shipped">Shipped</SelectItem>
+                          <SelectItem value="delivered">Delivered</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm">
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Details
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={7}
+                    className="text-center text-gray-500 py-12"
+                  >
+                    No orders found.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
-
-        {filteredOrders.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500">No orders found matching your criteria.</p>
-          </div>
-        )}
       </div>
     </AdminLayout>
-  )
+  );
 }

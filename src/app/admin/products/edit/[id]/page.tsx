@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { AdminLayout } from "@/components/admin-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,73 +21,102 @@ import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import axios from "axios";
-import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from "@/backend/lib/config";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  CLOUDINARY_CLOUD_NAME,
+  CLOUDINARY_UPLOAD_PRESET,
+} from "@/backend/lib/config";
 
+interface IProduct {
+  _id: string;
+  name: string;
+  description: string;
+  price: number;
+  compareAtPrice?: number; // For sales
+  images: string[];
+  category: "Gourmet" | "Wellness" | "Stationery" | "Home Goods" | "Apparel";
+  stock: number;
+  dimensions?: string; // e.g., "5in x 3in x 2in"
+  weight?: number; // in grams
+  materials?: string[];
+  isActive: boolean;
+}
 
-export default function NewProduct() {
+export default function EditProduct() {
   const router = useRouter();
-  const [productData, setProductData] = useState({
-    name: "",
-    description: "",
-    price: "",
-    compareAtPrice: "",
-    stock: "",
-    category: "",
-    isActive: true,
-  });
-  const [images, setImages] = useState<File[]>([]);
+  const params = useParams();
+  const { id: productId } = params;
+
+  const [productData, setProductData] = useState<Partial<IProduct>>({});
+  const [newImages, setNewImages] = useState<File[]>([]);
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [isFormValid, setIsFormValid] = useState(false);
 
-  // Effect to check form validity whenever data or images change
   useEffect(() => {
-    const { name, description, price, stock, category } = productData;
-    const isValid =
-      name.trim() !== "" &&
-      description.trim() !== "" &&
-      price.trim() !== "" &&
-      stock.trim() !== "" &&
-      category.trim() !== "" &&
-      images.length > 0;
-    setIsFormValid(isValid);
-  }, [productData, images]);
+    if (!productId) return;
 
-  const handleInputChange = (field: string, value: string | boolean) => {
+    const fetchProduct = async () => {
+      setIsFetching(true);
+      try {
+        const { data } = await axios.get(`/api/products/${productId}`);
+        if (data.success) {
+          setProductData(data.data);
+          setExistingImageUrls(data.data.images || []);
+          setImagePreviews(data.data.images || []);
+        } else {
+          throw new Error(data.message || "Failed to fetch product data.");
+        }
+      } catch (err: any) {
+        setError(
+          err.response?.data?.message || err.message || "An error occurred."
+        );
+      } finally {
+        setIsFetching(false);
+      }
+    };
+
+    fetchProduct();
+  }, [productId]);
+
+  const handleInputChange = (
+    field: string,
+    value: string | boolean | number
+  ) => {
     setProductData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    setImages((prev) => [...prev, ...files]);
+    setNewImages((prev) => [...prev, ...files]);
 
     const newPreviews = files.map((file) => URL.createObjectURL(file));
     setImagePreviews((prev) => [...prev, ...newPreviews]);
   };
 
-  const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
+  const removeImage = (index: number, isNew: boolean) => {
+    if (isNew) {
+      const newImageIndex = index - existingImageUrls.length;
+      setNewImages((prev) => prev.filter((_, i) => i !== newImageIndex));
+    } else {
+      setExistingImageUrls((prev) => prev.filter((_, i) => i !== index));
+    }
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid) {
-      setError(
-        "Please fill all required fields and upload at least one image."
-      );
-      return;
-    }
     setIsLoading(true);
     setError(null);
     setSuccess(null);
 
     try {
-      // 1. Upload images to Cloudinary
-      const imageUrls: string[] = [];
-      for (const image of images) {
+      // 1. Upload any new images to Cloudinary
+      const newImageUrls: string[] = [];
+      for (const image of newImages) {
         const formData = new FormData();
         formData.append("file", image);
         formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
@@ -96,46 +125,63 @@ export default function NewProduct() {
           `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
           formData
         );
-
-        if (res.status !== 200) {
-          throw new Error(res.data.error.message || "Image upload failed");
-        }
-        imageUrls.push(res.data.secure_url);
+        newImageUrls.push(res.data.secure_url);
       }
 
       // 2. Prepare product data for API
       const finalProductData = {
         ...productData,
-        price: parseFloat(productData.price),
+        price: parseFloat(productData.price as unknown as string),
         compareAtPrice: productData.compareAtPrice
-          ? parseFloat(productData.compareAtPrice)
+          ? parseFloat(productData.compareAtPrice as unknown as string)
           : undefined,
-        stock: parseInt(productData.stock, 10),
-        images: imageUrls,
+        stock: parseInt(productData.stock as unknown as string, 10),
+        images: [...existingImageUrls, ...newImageUrls],
       };
 
-      // 3. Send data to your backend to create the product
-      const { data } = await axios.post("/api/admin/products", finalProductData);
+      // 3. Send data to your backend to update the product
+      const { data } = await axios.put(
+        `/api/products/${productId}`,
+        finalProductData
+      );
 
       if (!data.success) {
-        throw new Error(data.message || "Failed to create product");
+        throw new Error(data.message || "Failed to update product");
       }
 
-      setSuccess("Product created successfully! Redirecting...");
+      setSuccess("Product updated successfully! Redirecting...");
       setTimeout(() => router.push("/admin/products"), 2000);
     } catch (err: any) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || "An error occurred");
-      } else {
-        setError(err.message);
-      }
+      setError(
+        err.response?.data?.message || err.message || "An error occurred"
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
+  if (isFetching) {
+    return (
+      <AdminLayout title="Edit Product">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Skeleton className="h-10 w-1/3" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <Skeleton className="h-48" />
+              <Skeleton className="h-64" />
+            </div>
+            <div className="space-y-6">
+              <Skeleton className="h-48" />
+              <Skeleton className="h-40" />
+            </div>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   return (
-    <AdminLayout title="Add New Product">
+    <AdminLayout title="Edit Product">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -147,19 +193,15 @@ export default function NewProduct() {
               </Button>
             </Link>
             <div>
-              <h2 className="text-lg font-semibold">Add New Product</h2>
+              <h2 className="text-lg font-semibold">Edit Product</h2>
               <p className="text-sm text-gray-600">
-                Create a new product for your store
+                Update the details for: {productData.name}
               </p>
             </div>
           </div>
-          <Button
-            type="submit"
-            form="new-product-form"
-            disabled={isLoading || !isFormValid}
-          >
+          <Button type="submit" form="edit-product-form" disabled={isLoading}>
             <Save className="h-4 w-4 mr-2" />
-            {isLoading ? "Saving..." : "Save Product"}
+            {isLoading ? "Saving..." : "Save Changes"}
           </Button>
         </div>
 
@@ -177,7 +219,7 @@ export default function NewProduct() {
         )}
 
         <form
-          id="new-product-form"
+          id="edit-product-form"
           onSubmit={handleSubmit}
           className="space-y-6"
         >
@@ -193,11 +235,10 @@ export default function NewProduct() {
                     <Label htmlFor="name">Product Name</Label>
                     <Input
                       id="name"
-                      value={productData.name}
+                      value={productData.name || ""}
                       onChange={(e) =>
                         handleInputChange("name", e.target.value)
                       }
-                      placeholder="Enter product name"
                       required
                       disabled={isLoading}
                     />
@@ -206,11 +247,10 @@ export default function NewProduct() {
                     <Label htmlFor="description">Description</Label>
                     <Textarea
                       id="description"
-                      value={productData.description}
+                      value={productData.description || ""}
                       onChange={(e) =>
                         handleInputChange("description", e.target.value)
                       }
-                      placeholder="Enter product description"
                       rows={4}
                       required
                       disabled={isLoading}
@@ -231,10 +271,7 @@ export default function NewProduct() {
                       <div className="mt-4">
                         <label htmlFor="images" className="cursor-pointer">
                           <span className="mt-2 block text-sm font-medium text-gray-900">
-                            Upload product images
-                          </span>
-                          <span className="mt-1 block text-sm text-gray-500">
-                            PNG, JPG, GIF up to 10MB
+                            Upload new images
                           </span>
                         </label>
                         <input
@@ -259,7 +296,12 @@ export default function NewProduct() {
                             />
                             <button
                               type="button"
-                              onClick={() => removeImage(index)}
+                              onClick={() =>
+                                removeImage(
+                                  index,
+                                  index >= existingImageUrls.length
+                                )
+                              }
                               className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
                               disabled={isLoading}
                             >
@@ -287,11 +329,10 @@ export default function NewProduct() {
                       id="price"
                       type="number"
                       step="0.01"
-                      value={productData.price}
+                      value={productData.price || ""}
                       onChange={(e) =>
                         handleInputChange("price", e.target.value)
                       }
-                      placeholder="0.00"
                       required
                       disabled={isLoading}
                     />
@@ -304,11 +345,10 @@ export default function NewProduct() {
                       id="compareAtPrice"
                       type="number"
                       step="0.01"
-                      value={productData.compareAtPrice}
+                      value={productData.compareAtPrice || ""}
                       onChange={(e) =>
                         handleInputChange("compareAtPrice", e.target.value)
                       }
-                      placeholder="0.00"
                       disabled={isLoading}
                     />
                   </div>
@@ -317,11 +357,10 @@ export default function NewProduct() {
                     <Input
                       id="stock"
                       type="number"
-                      value={productData.stock}
+                      value={productData.stock || ""}
                       onChange={(e) =>
                         handleInputChange("stock", e.target.value)
                       }
-                      placeholder="0"
                       required
                       disabled={isLoading}
                     />

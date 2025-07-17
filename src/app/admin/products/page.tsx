@@ -1,100 +1,149 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { AdminLayout } from "@/components/admin-layout"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Edit, Trash2, Filter } from "lucide-react"
-import Link from "next/link"
+import { useState, useEffect, useCallback } from "react";
+import { AdminLayout } from "@/components/admin-layout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Search, Plus, Edit, Trash2, Filter } from "lucide-react";
+import Link from "next/link";
+// import { IProduct } from "@/types";
+import { useDebounce } from "@/hooks/use-debounce";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
-const products = [
-  {
-    id: 1,
-    name: "Artisan Coffee Blend",
-    category: "Beverages",
-    price: "$24.99",
-    stock: 45,
-    status: "Active",
-    image: "/placeholder.svg?height=50&width=50",
-  },
-  {
-    id: 2,
-    name: "Handcrafted Soap Set",
-    category: "Bath & Body",
-    price: "$18.50",
-    stock: 23,
-    status: "Active",
-    image: "/placeholder.svg?height=50&width=50",
-  },
-  {
-    id: 3,
-    name: "Organic Tea Collection",
-    category: "Beverages",
-    price: "$32.00",
-    stock: 8,
-    status: "Low Stock",
-    image: "/placeholder.svg?height=50&width=50",
-  },
-  {
-    id: 4,
-    name: "Scented Candle",
-    category: "Home & Decor",
-    price: "$15.99",
-    stock: 67,
-    status: "Active",
-    image: "/placeholder.svg?height=50&width=50",
-  },
-  {
-    id: 5,
-    name: "Gourmet Chocolate Box",
-    category: "Food & Treats",
-    price: "$28.75",
-    stock: 0,
-    status: "Out of Stock",
-    image: "/placeholder.svg?height=50&width=50",
-  },
-  {
-    id: 6,
-    name: "Essential Oil Set",
-    category: "Wellness",
-    price: "$45.00",
-    stock: 34,
-    status: "Active",
-    image: "/placeholder.svg?height=50&width=50",
-  },
-]
+interface IProduct {
+  _id: string;
+  name: string;
+  description: string;
+  price: number;
+  compareAtPrice?: number; // For sales
+  images: string[];
+  category: "Gourmet" | "Wellness" | "Stationery" | "Home Goods" | "Apparel";
+  stock: number;
+  dimensions?: string; // e.g., "5in x 3in x 2in"
+  weight?: number; // in grams
+  materials?: string[];
+  isActive: boolean;
+}
 
+// Determines the product's status based on its data
+const getStatus = (product: IProduct) => {
+  if (!product.isActive) return "Inactive";
+  if (product.stock === 0) return "Out of Stock";
+  if (product.stock <= 10) return "Low Stock";
+  return "Active";
+};
+
+// Determines the color of the status badge
 const getStatusColor = (status: string) => {
   switch (status) {
     case "Active":
-      return "bg-green-100 text-green-800 border-green-200"
+      return "bg-green-100 text-green-800 border-green-200";
     case "Low Stock":
-      return "bg-yellow-100 text-yellow-800 border-yellow-200"
+      return "bg-yellow-100 text-yellow-800 border-yellow-200";
     case "Out of Stock":
-      return "bg-red-100 text-red-800 border-red-200"
+      return "bg-red-100 text-red-800 border-red-200";
     case "Inactive":
-      return "bg-gray-100 text-gray-800 border-gray-200"
+      return "bg-gray-100 text-gray-800 border-gray-200";
     default:
-      return "bg-gray-100 text-gray-800 border-gray-200"
+      return "bg-gray-100 text-gray-800 border-gray-200";
   }
-}
+};
 
 export default function ProductManagement() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState("all")
-  const [statusFilter, setStatusFilter] = useState("all")
+  const [products, setProducts] = useState<IProduct[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+  });
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = categoryFilter === "all" || product.category === categoryFilter
-    const matchesStatus = statusFilter === "all" || product.status === statusFilter
-    return matchesSearch && matchesCategory && matchesStatus
-  })
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+
+  // Fetches products from the API based on current filters and pagination
+  const fetchProducts = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        page: pagination.currentPage.toString(),
+        limit: "10",
+      });
+      if (debouncedSearchTerm) params.set("search", debouncedSearchTerm);
+      if (categoryFilter !== "all") params.set("category", categoryFilter);
+      if (statusFilter !== "all") params.set("status", statusFilter);
+
+      const res = await fetch(`/api/admin/products?${params.toString()}`);
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.message || "Failed to fetch products");
+      }
+
+      setProducts(data.data);
+      setPagination(data.pagination);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [
+    pagination.currentPage,
+    debouncedSearchTerm,
+    categoryFilter,
+    statusFilter,
+  ]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  // Handles the deletion of a product
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      const res = await fetch(`/api/products/${productId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.message || "Failed to delete product");
+      }
+      // Refetch products after deletion to update the list
+      fetchProducts();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
 
   return (
     <AdminLayout title="Product Management">
@@ -103,7 +152,9 @@ export default function ProductManagement() {
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-lg font-semibold">Products</h2>
-            <p className="text-sm text-gray-600">Manage your product inventory</p>
+            <p className="text-sm text-gray-600">
+              Manage your product inventory
+            </p>
           </div>
           <Link href="/admin/products/new">
             <Button>
@@ -131,11 +182,11 @@ export default function ProductManagement() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="Beverages">Beverages</SelectItem>
-              <SelectItem value="Bath & Body">Bath & Body</SelectItem>
-              <SelectItem value="Home & Decor">Home & Decor</SelectItem>
-              <SelectItem value="Food & Treats">Food & Treats</SelectItem>
+              <SelectItem value="Gourmet">Gourmet</SelectItem>
               <SelectItem value="Wellness">Wellness</SelectItem>
+              <SelectItem value="Stationery">Stationery</SelectItem>
+              <SelectItem value="Home Goods">Home Goods</SelectItem>
+              <SelectItem value="Apparel">Apparel</SelectItem>
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -166,51 +217,149 @@ export default function ProductManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell>
-                    <div className="flex items-center space-x-3">
-                      <img
-                        src={product.image || "/placeholder.svg"}
-                        alt={product.name}
-                        className="w-12 h-12 rounded-lg object-cover"
-                      />
-                      <div>
-                        <div className="font-medium">{product.name}</div>
-                        <div className="text-sm text-gray-500">ID: {product.id}</div>
+              {isLoading ? (
+                [...Array(5)].map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-12 w-12 rounded-lg" />
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-40" />
+                          <Skeleton className="h-3 w-20" />
+                        </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{product.category}</TableCell>
-                  <TableCell className="font-medium">{product.price}</TableCell>
-                  <TableCell>
-                    <span className={product.stock <= 10 ? "text-red-600 font-medium" : ""}>{product.stock} units</span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={`${getStatusColor(product.status)} border`}>{product.status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="ghost" size="sm">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-16" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-20" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-6 w-24 rounded-full" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Skeleton className="h-8 w-8" />
+                        <Skeleton className="h-8 w-8" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : error ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="text-center text-red-500 py-12"
+                  >
+                    {error}
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : products.length > 0 ? (
+                products.map((product) => {
+                  const status = getStatus(product);
+                  return (
+                    <TableRow key={product._id as string}>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <img
+                            src={
+                              product.images?.[0] ||
+                              "/placeholder.svg?height=50&width=50"
+                            }
+                            alt={product.name}
+                            className="w-12 h-12 rounded-lg object-cover"
+                          />
+                          <div>
+                            <div className="font-medium">{product.name}</div>
+                            <div className="text-sm text-gray-500">
+                              ID:{" "}
+                              {(product._id as string).slice(-6).toUpperCase()}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{product.category}</TableCell>
+                      <TableCell className="font-medium">
+                        ${product.price.toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={
+                            product.stock <= 10
+                              ? "text-red-600 font-medium"
+                              : ""
+                          }
+                        >
+                          {product.stock} units
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={`${getStatusColor(status)} border`}>
+                          {status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Link href={`/admin/products/edit/${product._id}`}>
+                            <Button variant="ghost" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Are you sure?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will
+                                  permanently delete the product.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() =>
+                                    handleDeleteProduct(product._id as string)
+                                  }
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="text-center text-gray-500 py-12"
+                  >
+                    No products found matching your criteria.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
-
-        {filteredProducts.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500">No products found matching your criteria.</p>
-          </div>
-        )}
       </div>
     </AdminLayout>
-  )
+  );
 }

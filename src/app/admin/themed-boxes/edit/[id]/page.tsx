@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { AdminLayout } from "@/components/admin-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,34 +25,19 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
+import { IProduct } from "@/backend/models/Product";
+import { IThemedBox } from "@/backend/models/ThemedBox";
 import {
   CLOUDINARY_CLOUD_NAME,
   CLOUDINARY_UPLOAD_PRESET,
 } from "@/backend/lib/config";
 
-interface IProduct {
-  _id: string;
-  name: string;
-  description: string;
-  price: number;
-  compareAtPrice?: number; // For sales
-  images: string[];
-  category: "Gourmet" | "Wellness" | "Stationery" | "Home Goods" | "Apparel";
-  stock: number;
-  dimensions?: string; // e.g., "5in x 3in x 2in"
-  weight?: number; // in grams
-  materials?: string[];
-  isActive: boolean;
-}
-
-export default function NewThemedBox() {
+export default function EditThemedBox() {
   const router = useRouter();
-  const [boxData, setBoxData] = useState({
-    name: "",
-    description: "",
-    price: "",
-    isActive: true,
-  });
+  const params = useParams();
+  const { id: boxId } = params;
+
+  const [boxData, setBoxData] = useState<Partial<IThemedBox>>({});
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [availableProducts, setAvailableProducts] = useState<IProduct[]>([]);
@@ -61,44 +46,62 @@ export default function NewThemedBox() {
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   const [isLoading, setIsLoading] = useState(false);
-  const [isFetchingProducts, setIsFetchingProducts] = useState(true);
+  const [isFetching, setIsFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [isFormValid, setIsFormValid] = useState(false);
+  const [isFormValid, setIsFormValid] = useState<boolean>(false);
 
-  // Effect to check form validity whenever data or images change
+  useEffect(() => {
+    if (!boxId) return;
+
+    const fetchBoxData = async () => {
+      setIsFetching(true);
+      try {
+        const [{ data: productsData }, { data: themedBoxData }] =
+          await Promise.all([
+            axios.get("/api/admin/products"),
+            axios.get(`/api/themed-boxes/${boxId}`),
+          ]);
+
+        if (productsData.success) {
+          setAvailableProducts(productsData.data);
+        } else {
+          throw new Error("Failed to fetch available products.");
+        }
+
+        setBoxData(themedBoxData);
+        setSelectedProducts(themedBoxData.products || []);
+        setImagePreview(themedBoxData.image);
+      } catch (err: any) {
+        setError(
+          err.response?.data?.message || err.message || "An error occurred."
+        );
+      } finally {
+        setIsFetching(false);
+      }
+    };
+
+    fetchBoxData();
+  }, [boxId]);
+
   useEffect(() => {
     const { name, description, price } = boxData;
     const isValid =
+      name &&
       name.trim() !== "" &&
+      description &&
       description.trim() !== "" &&
-      price.trim() !== "" &&
-      image !== null &&
-      selectedProducts.length > 0;
-    setIsFormValid(isValid);
-  }, [boxData, image, selectedProducts]);
+      price &&
+      price.toString().trim() !== "" &&
+      imagePreview !== null && // Check if there's an image preview (either existing or new)
+      selectedProducts.length > 0; // Ensure at least one product is selected
+    setIsFormValid(isValid as boolean);
+  }, [boxData, imagePreview, selectedProducts]);
 
-  // Fetch all available products to select from
-  useEffect(() => {
-    const fetchProducts = async () => {
-      setIsFetchingProducts(true);
-      try {
-        const { data } = await axios.get("/api/admin/products"); // Use the admin route to get all products
-        if (data.success) {
-          setAvailableProducts(data.data);
-        } else {
-          throw new Error("Failed to fetch products");
-        }
-      } catch (err) {
-        setError("Could not load available products.");
-      } finally {
-        setIsFetchingProducts(false);
-      }
-    };
-    fetchProducts();
-  }, []);
-
-  const handleInputChange = (field: string, value: string | boolean) => {
+  const handleInputChange = (
+    field: string,
+    value: string | boolean | number
+  ) => {
     setBoxData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -133,42 +136,43 @@ export default function NewThemedBox() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid) {
-      setError(
-        "Please fill all fields, upload an image, and select at least one product."
-      );
-      return;
-    }
     setIsLoading(true);
     setError(null);
     setSuccess(null);
 
     try {
-      // 1. Upload image to Cloudinary
-      const formData = new FormData();
-      formData.append("file", image as Blob);
-      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-      const res = await axios.post(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-        formData
-      );
-      const imageUrl = res.data.secure_url;
+      let imageUrl = boxData.image;
 
-      // 2. Prepare themed box data
-      const finalBoxData = {
-        ...boxData,
-        price: parseFloat(boxData.price),
-        image: imageUrl,
-        products: selectedProducts.map((p) => p._id), // Send only product IDs
-      };
-
-      // 3. Create themed box via API
-      const { data } = await axios.post("/api/themed-boxes", finalBoxData);
-      if (!data.success) {
-        throw new Error(data.message || "Failed to create themed box");
+      // 1. If a new image was selected, upload it to Cloudinary
+      if (image) {
+        const formData = new FormData();
+        formData.append("file", image);
+        formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+        const res = await axios.post(
+          `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+          formData
+        );
+        imageUrl = res.data.secure_url;
       }
 
-      setSuccess("Themed box created successfully! Redirecting...");
+      // 2. Prepare themed box data for update
+      const finalBoxData = {
+        ...boxData,
+        price: parseFloat(boxData.price as unknown as string),
+        image: imageUrl,
+        products: selectedProducts.map((p) => p._id),
+      };
+
+      // 3. Update the themed box via API
+      const { data } = await axios.put(
+        `/api/admin/themed-boxes/${boxId}`,
+        finalBoxData
+      );
+      if (!data.success) {
+        throw new Error(data.message || "Failed to update themed box");
+      }
+
+      setSuccess("Themed box updated successfully! Redirecting...");
       setTimeout(() => router.push("/admin/themed-boxes"), 2000);
     } catch (err: any) {
       setError(
@@ -179,10 +183,28 @@ export default function NewThemedBox() {
     }
   };
 
+  if (isFetching) {
+    return (
+      <AdminLayout title="Edit Themed Box">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <Skeleton className="h-10 w-1/3" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 space-y-6">
+              <Skeleton className="h-64" />
+              <Skeleton className="h-56" />
+            </div>
+            <div className="lg:col-span-2">
+              <Skeleton className="h-[700px]" />
+            </div>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   return (
-    <AdminLayout title="Create New Themed Box">
+    <AdminLayout title="Edit Themed Box">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Link href="/admin/themed-boxes">
@@ -192,19 +214,17 @@ export default function NewThemedBox() {
               </Button>
             </Link>
             <div>
-              <h2 className="text-lg font-semibold">Create New Themed Box</h2>
-              <p className="text-sm text-gray-600">
-                Curate a collection of products for a themed experience
-              </p>
+              <h2 className="text-lg font-semibold">Edit Themed Box</h2>
+              <p className="text-sm text-gray-600">Updating: {boxData.name}</p>
             </div>
           </div>
           <Button
             type="submit"
-            form="new-themed-box-form"
+            form="edit-themed-box-form"
             disabled={isLoading || !isFormValid}
           >
             <Save className="h-4 w-4 mr-2" />
-            {isLoading ? "Saving..." : "Save Themed Box"}
+            {isLoading ? "Saving..." : "Save Changes"}
           </Button>
         </div>
 
@@ -222,12 +242,11 @@ export default function NewThemedBox() {
         )}
 
         <form
-          id="new-themed-box-form"
+          id="edit-themed-box-form"
           onSubmit={handleSubmit}
           className="space-y-6"
         >
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Box Information */}
             <div className="lg:col-span-1 space-y-6">
               <Card>
                 <CardHeader>
@@ -238,7 +257,7 @@ export default function NewThemedBox() {
                     <Label htmlFor="name">Box Name</Label>
                     <Input
                       id="name"
-                      value={boxData.name}
+                      value={boxData.name || ""}
                       onChange={(e) =>
                         handleInputChange("name", e.target.value)
                       }
@@ -249,7 +268,7 @@ export default function NewThemedBox() {
                     <Label htmlFor="description">Description</Label>
                     <Textarea
                       id="description"
-                      value={boxData.description}
+                      value={boxData.description || ""}
                       onChange={(e) =>
                         handleInputChange("description", e.target.value)
                       }
@@ -262,7 +281,7 @@ export default function NewThemedBox() {
                       id="price"
                       type="number"
                       step="0.01"
-                      value={boxData.price}
+                      value={boxData.price || ""}
                       onChange={(e) =>
                         handleInputChange("price", e.target.value)
                       }
@@ -326,7 +345,6 @@ export default function NewThemedBox() {
               </Card>
             </div>
 
-            {/* Product Picker */}
             <div className="lg:col-span-2">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[700px]">
                 <Card className="flex flex-col">
@@ -343,7 +361,7 @@ export default function NewThemedBox() {
                     </div>
                   </CardHeader>
                   <CardContent className="flex-1 overflow-auto">
-                    {isFetchingProducts ? (
+                    {isFetching ? (
                       <Skeleton className="h-full w-full" />
                     ) : (
                       <div className="space-y-2">

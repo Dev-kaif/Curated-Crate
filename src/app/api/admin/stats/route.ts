@@ -1,13 +1,12 @@
+// src/app/api/admin/stats/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/backend/lib/mongodb";
 import { authenticateAndAuthorize } from "@/backend/lib/auth";
 import Product from "@/backend/models/Product";
 import Order from "@/backend/models/Order";
 import User from "@/backend/models/User";
-import ThemedBox from "@/backend/models/ThemedBox";
 
 export async function GET(req: NextRequest) {
-  // Secure this endpoint, only admins can access stats
   const authResult = await authenticateAndAuthorize(req, "admin");
   if (authResult.response) {
     return authResult.response;
@@ -16,25 +15,67 @@ export async function GET(req: NextRequest) {
   await dbConnect();
 
   try {
-    // Calculate total revenue from completed orders
-    const totalRevenueResult = await Order.aggregate([
-      { $match: { status: "Delivered" } },
+    // --- Aggregate Metrics ---
+
+    // 1. Total Revenue from delivered orders
+    const revenueResult = await Order.aggregate([
+      { $match: { orderStatus: "delivered" } },
       { $group: { _id: null, totalRevenue: { $sum: "$totalPrice" } } },
     ]);
     const totalRevenue =
-      totalRevenueResult.length > 0 ? totalRevenueResult[0].totalRevenue : 0;
+      revenueResult.length > 0 ? revenueResult[0].totalRevenue : 0;
 
-    // Count total number of orders
+    // 2. Total number of all orders
     const totalOrders = await Order.countDocuments();
 
-    // Count total number of customers (users with 'user' role)
+    // 3. Total number of customers (users with 'user' role)
     const totalCustomers = await User.countDocuments({ role: "user" });
 
-    // Count total number of individual products
-    const totalProducts = await Product.countDocuments();
+    // 4. Count of products with low stock (e.g., stock <= 10)
+    const lowStockCount = await Product.countDocuments({ stock: { $lte: 10 } });
 
-    // Count total number of themed boxes
-    const totalThemedBoxes = await ThemedBox.countDocuments();
+    // --- Recent Orders ---
+    const recentOrders = await Order.find()
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .populate({
+        path: "userId",
+        model: User,
+        select: "name", // Select only the user's name
+      });
+
+    // Format recent orders to match frontend expectations
+    const formattedRecentOrders = recentOrders.map((order: any) => ({
+      id: order._id.toString(),
+      customer: order.userId?.name || "N/A",
+      status: order.orderStatus,
+      total: order.totalPrice,
+    }));
+
+    // --- Sales Data for the last 7 days ---
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const salesData = await Order.aggregate([
+      { $match: { createdAt: { $gte: sevenDaysAgo } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          totalSales: { $sum: "$totalPrice" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Format sales data for the chart
+    const formattedSalesData = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dayStr = d.toISOString().split("T")[0];
+      const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
+      const sale = salesData.find((s) => s._id === dayStr);
+      return { day: dayName, sales: sale ? sale.totalSales : 0 };
+    }).reverse();
 
     return NextResponse.json({
       success: true,
@@ -42,8 +83,9 @@ export async function GET(req: NextRequest) {
         totalRevenue,
         totalOrders,
         totalCustomers,
-        totalProducts,
-        totalThemedBoxes,
+        lowStockCount,
+        recentOrders: formattedRecentOrders,
+        salesData: formattedSalesData,
       },
     });
   } catch (error) {
