@@ -1,123 +1,216 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { createContext, useContext, useReducer, type ReactNode } from "react"
+import type React from "react";
+import {
+  createContext,
+  useContext,
+  useReducer,
+  type ReactNode,
+  useEffect,
+} from "react";
+import axios from "axios";
 
+// --- INTERFACES ---
 export interface Product {
-  id: string
-  name: string
-  price: number
-  image: string
-  category: string
-  description: string
-  specifications?: Record<string, string>
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  images: string[];
+  stock: number;
 }
 
-export interface CartItem extends Product {
-  quantity: number
+export interface CartItem {
+  id: string;
+  productId: string;
+  name: string;
+  imageUrl: string;
+  price: number;
+  quantity: number;
+  stock: number;
 }
 
 interface StoreState {
-  cart: CartItem[]
-  wishlist: Product[]
-  searchQuery: string
-  isSearchOpen: boolean
+  cart: {
+    items: CartItem[];
+    totalPrice: number;
+  };
+  wishlist: Product[];
 }
 
 type StoreAction =
-  | { type: "ADD_TO_CART"; product: Product }
-  | { type: "REMOVE_FROM_CART"; productId: string }
-  | { type: "UPDATE_QUANTITY"; productId: string; quantity: number }
-  | { type: "ADD_TO_WISHLIST"; product: Product }
-  | { type: "REMOVE_FROM_WISHLIST"; productId: string }
-  | { type: "SET_SEARCH_QUERY"; query: string }
-  | { type: "TOGGLE_SEARCH"; isOpen?: boolean }
+  | { type: "SET_CART"; payload: StoreState["cart"] }
+  | { type: "SET_WISHLIST"; payload: Product[] };
+
+// --- CONTEXT & REDUCER ---
+interface StoreContextType {
+  state: StoreState;
+  addToCart: (productId: string, quantity: number) => Promise<void>;
+  removeFromCart: (cartItemId: string) => Promise<void>;
+  updateQuantity: (cartItemId: string, quantity: number) => Promise<void>;
+  addToWishlist: (productId: string) => Promise<void>;
+  removeFromWishlist: (productId: string) => Promise<void>;
+}
+
+const StoreContext = createContext<StoreContextType | null>(null);
 
 const initialState: StoreState = {
-  cart: [],
-  wishlist: [],
-  searchQuery: "",
-  isSearchOpen: false,
-}
+  cart: { items: [], totalPrice: 0 },
+  wishlist: [], // NOTE: Correctly initialized as an empty array.
+};
 
 function storeReducer(state: StoreState, action: StoreAction): StoreState {
   switch (action.type) {
-    case "ADD_TO_CART":
-      const existingItem = state.cart.find((item) => item.id === action.product.id)
-      if (existingItem) {
-        return {
-          ...state,
-          cart: state.cart.map((item) =>
-            item.id === action.product.id ? { ...item, quantity: item.quantity + 1 } : item,
-          ),
-        }
-      }
-      return {
-        ...state,
-        cart: [...state.cart, { ...action.product, quantity: 1 }],
-      }
-
-    case "REMOVE_FROM_CART":
-      return {
-        ...state,
-        cart: state.cart.filter((item) => item.id !== action.productId),
-      }
-
-    case "UPDATE_QUANTITY":
-      return {
-        ...state,
-        cart: state.cart
-          .map((item) => (item.id === action.productId ? { ...item, quantity: Math.max(0, action.quantity) } : item))
-          .filter((item) => item.quantity > 0),
-      }
-
-    case "ADD_TO_WISHLIST":
-      if (state.wishlist.find((item) => item.id === action.product.id)) {
-        return state
-      }
-      return {
-        ...state,
-        wishlist: [...state.wishlist, action.product],
-      }
-
-    case "REMOVE_FROM_WISHLIST":
-      return {
-        ...state,
-        wishlist: state.wishlist.filter((item) => item.id !== action.productId),
-      }
-
-    case "SET_SEARCH_QUERY":
-      return {
-        ...state,
-        searchQuery: action.query,
-      }
-
-    case "TOGGLE_SEARCH":
-      return {
-        ...state,
-        isSearchOpen: action.isOpen ?? !state.isSearchOpen,
-      }
-
+    case "SET_CART":
+      return { ...state, cart: action.payload };
+    case "SET_WISHLIST":
+      // NOTE: Ensures the wishlist is always an array, even if the payload is bad.
+      return { ...state, wishlist: action.payload || [] };
     default:
-      return state
+      return state;
   }
 }
 
-const StoreContext = createContext<{
-  state: StoreState
-  dispatch: React.Dispatch<StoreAction>
-} | null>(null)
-
+// --- STORE PROVIDER COMPONENT ---
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(storeReducer, initialState)
+  const [state, dispatch] = useReducer(storeReducer, initialState);
 
-  return <StoreContext.Provider value={{ state, dispatch }}>{children}</StoreContext.Provider>
+  const transformBackendCart = (backendData: any): StoreState["cart"] => {
+    if (!backendData || !Array.isArray(backendData.items)) {
+      return { items: [], totalPrice: 0 };
+    }
+    const transformedItems: CartItem[] = backendData.items.map((item: any) => ({
+      id: item._id,
+      productId: item.productId,
+      name: item.name,
+      imageUrl: item.imageUrl,
+      price: item.price,
+      quantity: item.quantity,
+      stock: item.stock,
+    }));
+    return {
+      items: transformedItems,
+      totalPrice: backendData.totalPrice,
+    };
+  };
+
+  useEffect(() => {
+    const initializeStore = async () => {
+      try {
+        const [cartRes, wishlistRes] = await Promise.all([
+          axios.get("/api/cart"),
+          axios.get("/api/wishlist"), // Assuming you have this API endpoint
+        ]);
+
+        if (cartRes.data.success) {
+          const cart = transformBackendCart(cartRes.data.data);
+          dispatch({ type: "SET_CART", payload: cart });
+        }
+
+        if (wishlistRes.data.success) {
+          const products = wishlistRes.data.data.items || [];
+          dispatch({ type: "SET_WISHLIST", payload: products });
+        }
+      } catch (error) {
+        console.error("Failed to initialize store:", error);
+        // On failure, ensure state remains valid to prevent UI crashes.
+        dispatch({ type: "SET_WISHLIST", payload: [] });
+      }
+    };
+    initializeStore();
+  }, []);
+
+  // --- ASYNCHRONOUS ACTIONS ---
+
+  const addToCart = async (productId: string, quantity: number) => {
+    try {
+      const { data } = await axios.post("/api/cart", { productId, quantity });
+      if (data.success) {
+        dispatch({
+          type: "SET_CART",
+          payload: transformBackendCart(data.data),
+        });
+      }
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+    }
+  };
+
+  const removeFromCart = async (cartItemId: string) => {
+    try {
+      const { data } = await axios.delete(`/api/cart/${cartItemId}`);
+      if (data.success) {
+        dispatch({
+          type: "SET_CART",
+          payload: transformBackendCart(data.data),
+        });
+      }
+    } catch (error) {
+      console.error("Failed to remove from cart:", error);
+    }
+  };
+
+  const updateQuantity = async (cartItemId: string, quantity: number) => {
+    if (quantity <= 0) return removeFromCart(cartItemId);
+    try {
+      const { data } = await axios.put(`/api/cart/${cartItemId}`, { quantity });
+      if (data.success) {
+        dispatch({
+          type: "SET_CART",
+          payload: transformBackendCart(data.data),
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update quantity:", error);
+    }
+  };
+
+  const addToWishlist = async (productId: string) => {
+    try {
+      const { data } = await axios.post("/api/wishlist", { productId });
+      console.log("add==>",data)
+      if (data.success) {
+        dispatch({ type: "SET_WISHLIST", payload: data.data.items || [] });
+      }
+    } catch (error) {
+      console.error("Failed to add to wishlist:", error);
+    }
+  };
+
+  const removeFromWishlist = async (productId: string) => {
+    console.log("i am here in remove wishlist")
+    try {
+      const { data } = await axios.delete(`/api/wishlist/${productId}`);
+      console.log("rem ==>",data)
+      if (data.success) {
+        dispatch({ type: "SET_WISHLIST", payload: data.data.items || [] });
+      }
+    } catch (error) {
+      console.error("Failed to remove from wishlist:", error);
+    }
+  };
+
+  return (
+    <StoreContext.Provider
+      value={{
+        state,
+        addToCart,
+        removeFromCart,
+        updateQuantity,
+        addToWishlist,
+        removeFromWishlist,
+      }}
+    >
+      {children}
+    </StoreContext.Provider>
+  );
 }
 
+// --- CUSTOM HOOK ---
 export function useStore() {
-  const context = useContext(StoreContext)
+  const context = useContext(StoreContext);
   if (!context) {
-    throw new Error("useStore must be used within a StoreProvider")
+    throw new Error("useStore must be used within a StoreProvider");
   }
-  return context
+  return context;
 }
