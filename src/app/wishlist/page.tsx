@@ -1,24 +1,76 @@
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
-import { Heart, ShoppingBag } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { PageLayout } from "@/components/Layout/page-layout"
-import { useStore } from "@/contexts/store-context"
-import Link from "next/link"
+import { motion } from "framer-motion";
+import { useState } from "react";
+import { Heart, ShoppingBag } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageLayout } from "@/components/Layout/page-layout";
+import { useStore, type Product } from "@/contexts/store-context";
+import Link from "next/link";
 
 export default function WishlistPage() {
-  const { state, dispatch } = useStore()
+  const { state, dispatch } = useStore();
+  const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
+  console.log(state)
+  const moveToCart = async (product: Product) => {
+    setLoadingItemId(product.id);
+    try {
+      // 1. Add the item to the cart via API
+      const cartRes = await fetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "product",
+          itemId: product.id,
+          quantity: 1,
+        }),
+      });
 
-  const moveToCart = (product: any) => {
-    dispatch({ type: "ADD_TO_CART", product })
-    dispatch({ type: "REMOVE_FROM_WISHLIST", productId: product.id })
-  }
+      if (!cartRes.ok) {
+        throw new Error("Failed to add item to cart");
+      }
 
-  const removeFromWishlist = (productId: string) => {
-    dispatch({ type: "REMOVE_FROM_WISHLIST", productId })
-  }
+      // Update the cart state locally
+      dispatch({ type: "ADD_TO_CART", item: product, itemType: "product" });
+
+      // 2. Remove the item from the wishlist (this function already handles API + state)
+      await removeFromWishlist(product.id, true);
+    } catch (error) {
+      console.error("Error moving to cart:", error);
+      // You could show an error toast here
+    } finally {
+      setLoadingItemId(null);
+    }
+  };
+
+  const removeFromWishlist = async (
+    productId: string,
+    isMovingToCart: boolean = false
+  ) => {
+    if (!isMovingToCart) {
+      setLoadingItemId(productId);
+    }
+    try {
+      // Call the backend to remove the item from the wishlist
+      const res = await fetch(`/api/wishlist/${productId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to remove item from wishlist");
+      }
+
+      // If successful, update the local state
+      dispatch({ type: "REMOVE_FROM_WISHLIST", productId });
+    } catch (error) {
+      console.error("Error removing from wishlist:", error);
+    } finally {
+      if (!isMovingToCart) {
+        setLoadingItemId(null);
+      }
+    }
+  };
 
   if (state.wishlist.length === 0) {
     return (
@@ -34,9 +86,12 @@ export default function WishlistPage() {
               <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
                 <Heart className="w-12 h-12 text-primary" />
               </div>
-              <h1 className="text-3xl font-serif font-bold text-foreground">Your Wishlist is Empty</h1>
+              <h1 className="text-3xl font-serif font-bold text-foreground">
+                Your Wishlist is Empty
+              </h1>
               <p className="text-foreground/70 text-lg">
-                Explore our collection to find something you love and save it for later.
+                Explore our collection to find something you love and save it
+                for later.
               </p>
               <Link href="/shop">
                 <Button className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 rounded-full">
@@ -47,7 +102,7 @@ export default function WishlistPage() {
           </div>
         </div>
       </PageLayout>
-    )
+    );
   }
 
   return (
@@ -60,8 +115,12 @@ export default function WishlistPage() {
             transition={{ duration: 0.8 }}
             className="text-center mb-12"
           >
-            <h1 className="text-4xl lg:text-5xl font-serif font-bold text-foreground mb-4">My Wishlist</h1>
-            <p className="text-xl text-foreground/70">Items you've saved for later</p>
+            <h1 className="text-4xl lg:text-5xl font-serif font-bold text-foreground mb-4">
+              My Wishlist
+            </h1>
+            <p className="text-xl text-foreground/70">
+              Items you've saved for later
+            </p>
           </motion.div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -76,7 +135,7 @@ export default function WishlistPage() {
                   <Link href={`/shop/details/${product.id}`}>
                     <div className="aspect-square bg-gradient-to-br from-primary/10 to-primary/5 relative overflow-hidden">
                       <img
-                        src={product.image || "/placeholder.svg"}
+                        src={product.imageUrl || "/placeholder.svg"}
                         alt={product.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
@@ -84,23 +143,35 @@ export default function WishlistPage() {
                   </Link>
                   <CardContent className="p-6">
                     <Link href={`/shop/details/${product.id}`}>
-                      <h3 className="font-serif font-bold text-lg text-foreground mb-2 hover:text-primary transition-colors">
+                      <h3 className="font-serif font-bold text-lg text-foreground mb-2 hover:text-primary transition-colors truncate">
                         {product.name}
                       </h3>
                     </Link>
-                    <p className="text-foreground/60 text-sm mb-3 line-clamp-2">{product.description}</p>
-                    <p className="text-primary font-bold text-xl mb-4">${product.price}</p>
+                    <p className="text-foreground/60 text-sm mb-3 line-clamp-2 h-10">
+                      {product.description}
+                    </p>
+                    <p className="text-primary font-bold text-xl mb-4">
+                      ${product.price.toFixed(2)}
+                    </p>
 
                     <div className="space-y-2">
                       <Button
                         onClick={() => moveToCart(product)}
+                        disabled={loadingItemId === product.id}
                         className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-full"
                       >
-                        <ShoppingBag className="w-4 h-4 mr-2" />
-                        Move to Box
+                        {loadingItemId === product.id ? (
+                          "Moving..."
+                        ) : (
+                          <>
+                            <ShoppingBag className="w-4 h-4 mr-2" />
+                            Move to Box
+                          </>
+                        )}
                       </Button>
                       <Button
                         onClick={() => removeFromWishlist(product.id)}
+                        disabled={loadingItemId === product.id}
                         variant="outline"
                         className="w-full rounded-full bg-transparent"
                       >
@@ -115,5 +186,5 @@ export default function WishlistPage() {
         </div>
       </div>
     </PageLayout>
-  )
+  );
 }

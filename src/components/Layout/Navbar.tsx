@@ -1,28 +1,30 @@
-"use client"
+"use client";
 
-import { motion, AnimatePresence } from "framer-motion"
-import { useState, useEffect } from "react"
-import { useRouter, usePathname } from "next/navigation"
-import Link from "next/link"
-import { Search, Heart, ShoppingBag, User, Menu, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { useStore } from "@/contexts/store-context"
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { useSession, signOut } from "next-auth/react";
+import { Search, Heart, ShoppingBag, User, Menu, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useStore } from "@/contexts/store-context";
 
 export const Navigation = () => {
-  const [isScrolled, setIsScrolled] = useState(false)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const { state, dispatch } = useStore()
-  const router = useRouter()
-  const pathname = usePathname()
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { state, dispatch } = useStore();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { data: session, status } = useSession(); // Get session status
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50)
-    }
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
+      setIsScrolled(window.scrollY > 50);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const navLinks = [
     { name: "Build a Box", href: "/shop" },
@@ -30,10 +32,10 @@ export const Navigation = () => {
     { name: "Our Story", href: "/about" },
     { name: "FAQ", href: "/faq" },
     { name: "Contact", href: "/contact" },
-  ]
+  ];
 
-  const cartCount = state.cart.reduce((sum, item) => sum + item.quantity, 0)
-  const wishlistCount = state.wishlist.length
+  const cartCount = state.cart.items.reduce((sum, item) => sum + item.quantity, 0);
+  const wishlistCount = state.wishlist.length;
 
   return (
     <motion.nav
@@ -49,7 +51,11 @@ export const Navigation = () => {
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
             <Link
               href="/"
               className="text-2xl font-serif font-bold text-foreground hover:text-primary transition-colors"
@@ -80,7 +86,7 @@ export const Navigation = () => {
           </div>
 
           {/* Action Icons */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 md:space-x-4">
             <motion.button
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -121,17 +127,36 @@ export const Navigation = () => {
               )}
             </motion.button>
 
+            {/* === UPDATED AUTH BUTTONS (DESKTOP) === */}
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.7 }}
+              className="hidden md:flex items-center space-x-2"
             >
-              <Link href="/login">
-                <Button className="hidden md:flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors">
-                  <User className="w-4 h-4" />
-                  <span className="text-sm font-medium">Log In</span>
-                </Button>
-              </Link>
+              {status === "loading" ? (
+                <div className="h-10 w-24 rounded-full bg-foreground/10 animate-pulse" />
+              ) : session ? (
+                <Link href="/account/dashboard">
+                  <Button className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors">
+                    <User className="w-4 h-4" />
+                    <span className="text-sm font-medium">Profile</span>
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link href="/login">
+                    <Button variant="ghost" className="rounded-full">
+                      Log In
+                    </Button>
+                  </Link>
+                  <Link href="/signup">
+                    <Button className="bg-primary text-primary-foreground rounded-full hover:bg-primary/90">
+                      Sign Up
+                    </Button>
+                  </Link>
+                </>
+              )}
             </motion.div>
 
             {/* Mobile Menu Button */}
@@ -142,7 +167,11 @@ export const Navigation = () => {
               className="md:hidden p-2 hover:bg-foreground/5 rounded-full transition-colors"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
-              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {isMobileMenuOpen ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
             </motion.button>
           </div>
         </div>
@@ -174,18 +203,59 @@ export const Navigation = () => {
                   </Link>
                 </motion.div>
               ))}
-              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
-                <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                  <Button className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors">
-                    <User className="w-4 h-4" />
-                    <span className="text-sm font-medium">Log In</span>
-                  </Button>
-                </Link>
+              {/* === UPDATED AUTH BUTTONS (MOBILE) === */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 }}
+                className="pt-4 mt-4 border-t border-foreground/10"
+              >
+                {status === "loading" ? (
+                  <div className="h-10 w-full rounded-full bg-foreground/10 animate-pulse" />
+                ) : session ? (
+                  <div className="space-y-2">
+                    <Link
+                      href="/account/dashboard"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Button className="w-full justify-start">
+                        <User className="w-4 h-4 mr-2" /> Profile
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={() => {
+                        signOut();
+                        setIsMobileMenuOpen(false);
+                      }}
+                    >
+                      Logout
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Link
+                      href="/login"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Button className="w-full">Log In</Button>
+                    </Link>
+                    <Link
+                      href="/signup"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Button variant="ghost" className="w-full">
+                        Sign Up
+                      </Button>
+                    </Link>
+                  </div>
+                )}
               </motion.div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
     </motion.nav>
-  )
-}
+  );
+};
