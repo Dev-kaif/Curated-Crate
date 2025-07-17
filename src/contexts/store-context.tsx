@@ -45,6 +45,7 @@ type StoreAction =
 // --- CONTEXT & REDUCER ---
 interface StoreContextType {
   state: StoreState;
+  dispatch?: any;
   addToCart: (productId: string, quantity: number) => Promise<void>;
   removeFromCart: (cartItemId: string) => Promise<void>;
   updateQuantity: (cartItemId: string, quantity: number) => Promise<void>;
@@ -168,7 +169,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const addToWishlist = async (productId: string) => {
     try {
       const { data } = await axios.post("/api/wishlist", { productId });
-      console.log("add==>",data)
+      console.log("add==>", data);
       if (data.success) {
         dispatch({ type: "SET_WISHLIST", payload: data.data.items || [] });
       }
@@ -178,10 +179,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const removeFromWishlist = async (productId: string) => {
-    console.log("i am here in remove wishlist")
+    console.log("i am here in remove wishlist");
     try {
       const { data } = await axios.delete(`/api/wishlist/${productId}`);
-      console.log("rem ==>",data)
+      console.log("rem ==>", data);
       if (data.success) {
         dispatch({ type: "SET_WISHLIST", payload: data.data.items || [] });
       }

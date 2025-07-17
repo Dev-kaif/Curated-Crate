@@ -4,28 +4,25 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/backend/lib/mongodb";
 import User from "@/backend/models/User";
 import { authenticateAndAuthorize } from "@/backend/lib/auth";
-import { IUser } from "@/types"; // Ensure IAddress and IUser are correctly imported
+import { IAddress, IUser } from "@/types";
+import bcrypt from "bcrypt";
+import mongoose from "mongoose";
 
 export async function GET(request: NextRequest) {
   const authResult = await authenticateAndAuthorize(request);
   if (authResult.response) return authResult.response;
-  const authenticatedUser = authResult.user!; // The authenticated user object from middleware
+  const authenticatedUser = authResult.user!;
 
   await dbConnect();
 
   try {
-    // Fetch the user by their authenticated ID, excluding the password field
     const user = await User.findById(authenticatedUser.id).select("-password");
-
-    // If no user is found, return a 404 response
     if (!user) {
       return NextResponse.json(
         { success: false, message: "User not found." },
         { status: 404 }
       );
     }
-
-    // Return the user data
     return NextResponse.json({ success: true, data: user }, { status: 200 });
   } catch (error: any) {
     console.error("Error fetching user profile:", error);
@@ -43,38 +40,35 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const authResult = await authenticateAndAuthorize(request);
   if (authResult.response) return authResult.response;
-  const authenticatedUser = authResult.user!; // The authenticated user object from middleware
+  const authenticatedUser = authResult.user!;
 
   await dbConnect();
 
   try {
-    // Define the expected shape of the request body for updates
-    const body: Partial<Omit<IUser, "role">> & { password?: string } = await request.json(); 
-      
-    const {
-      email,
-      name,
-      firstName,
-      lastName,
-      phone,
-      profilePicture,
-      addresses,
-      password,
-    } = body;
+    const body: Partial<IUser> & { password?: string } = await request.json();
 
-    // Create an object to hold only the fields that are actually provided in the request
-    const updateData: Partial<IUser & { password?: string }> = {};
+    // Omit email and role from direct updates
+    const { email, role, ...updatePayload } = body;
 
-    // Conditionally add fields to updateData if they are provided in the request body
-    if (email !== undefined) updateData.email = email;
-    if (name !== undefined) updateData.name = name;
-    if (firstName !== undefined) updateData.firstName = firstName;
-    if (lastName !== undefined) updateData.lastName = lastName;
-    if (phone !== undefined) updateData.phone = phone;
-    if (profilePicture !== undefined)
-      updateData.profilePicture = profilePicture;
-    if (password !== undefined) {
-      if (password.length < 6) {
+    const user = await User.findById(authenticatedUser.id);
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: "User not found." },
+        { status: 404 }
+      );
+    }
+
+    // Handle general profile updates
+    if (updatePayload.name !== undefined) user.name = updatePayload.name;
+    if (updatePayload.firstName !== undefined)
+      user.firstName = updatePayload.firstName;
+    if (updatePayload.lastName !== undefined)
+      user.lastName = updatePayload.lastName;
+    if (updatePayload.phone !== undefined) user.phone = updatePayload.phone;
+
+    // Handle password update
+    if (updatePayload.password) {
+      if (updatePayload.password.length < 6) {
         return NextResponse.json(
           {
             success: false,
@@ -83,73 +77,44 @@ export async function PUT(request: NextRequest) {
           { status: 400 }
         );
       }
-      updateData.password = password; // Placeholder: Replace with hashed password
+      user.password = await bcrypt.hash(updatePayload.password, 10);
     }
 
-    // Handle addresses array updates with default logic
-    if (addresses !== undefined) {
-      let hasDefault = false;
-      // Validate each address and enforce only one default address
-      for (let i = 0; i < addresses.length; i++) {
-        const addr = addresses[i];
-        if (!addr.street || !addr.city || !addr.zipCode || !addr.country) {
-          return NextResponse.json(
-            {
-              success: false,
-              message: `Incomplete address details provided for address at index ${i}.`,
-            },
-            { status: 400 }
-          );
-        }
+    // Handle address updates
+    if (updatePayload.addresses) {
+      // Ensure only one address is default
+      let defaultFound = false;
+      for (const addr of updatePayload.addresses) {
         if (addr.isDefault) {
-          if (hasDefault) {
-            addresses[i].isDefault = false;
-          } else {
-            hasDefault = true;
+          if (defaultFound) {
+            addr.isDefault = false; // Enforce only one default
           }
+          defaultFound = true;
+        }
+        // Ensure new addresses get an ID
+        if (!addr._id) {
+          addr._id = new mongoose.Types.ObjectId();
         }
       }
-      updateData.addresses = addresses;
+      // If no address is marked as default, make the first one default
+      if (!defaultFound && updatePayload.addresses.length > 0) {
+        updatePayload.addresses[0].isDefault = true;
+      }
+      user.addresses = updatePayload.addresses as any;
     }
 
-    // If no fields are provided for update, return a 400 response
-    if (Object.keys(updateData).length === 0) {
-      return NextResponse.json(
-        { success: false, message: "No valid update data provided." },
-        { status: 400 }
-      );
-    }
+    const updatedUser = await user.save();
 
-    const updatedUser = await User.findByIdAndUpdate(
-      authenticatedUser.id,
-      { ...updateData, updatedAt: new Date() },
-      { new: true, runValidators: true, select: "-password" }
-    );
+    const userObject = updatedUser.toObject();
+    delete userObject.password;
 
-    // If no user is found for update, return a 404 response
-    if (!updatedUser) {
-      return NextResponse.json(
-        { success: false, message: "User not found for update." },
-        { status: 404 }
-      );
-    }
-
-    // Return the updated user data
     return NextResponse.json(
-      { success: true, data: updatedUser },
+      { success: true, data: userObject },
       { status: 200 }
     );
   } catch (error: any) {
     console.error("Error updating user profile:", error);
-    if (error.code === 11000) {
-      // Handle duplicate key error (e.g., if email already exists)
-      return NextResponse.json(
-        { success: false, message: "Email already in use by another account." },
-        { status: 409 }
-      );
-    }
     if (error.name === "ValidationError") {
-      // Handle Mongoose validation errors
       return NextResponse.json(
         { success: false, message: error.message, errors: error.errors },
         { status: 400 }
