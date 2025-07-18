@@ -29,7 +29,7 @@ const ProductCard = ({ product }: { product: Product }) => {
 
   // Check if the product is already in the cart
   const isInCart = session
-    ? state.cart.items.some((item) => item.productId === product.id)
+    ? state.cart.items.some((item) => item.productId === product.productId)
     : false;
 
   const handleButtonClick = async () => {
@@ -43,7 +43,7 @@ const ProductCard = ({ product }: { product: Product }) => {
     } else {
       setIsAdding(true);
       try {
-        await addToCart(product.id, 1); // Pass itemType
+        await addToCart(product.productId as string, 1); // Pass itemType
         // You can add a success toast notification here
       } catch (error) {
         console.error("Error adding to cart:", error);
@@ -62,7 +62,7 @@ const ProductCard = ({ product }: { product: Product }) => {
       transition={{ duration: 0.3 }}
     >
       <Card className="overflow-hidden bg-background border-0 shadow-lg hover:shadow-xl transition-all duration-300 group">
-        <Link href={`/shop/details/${product.id}`}>
+        <Link href={`/shop/details/${product.productId}`}>
           <div className="aspect-square bg-gradient-to-br from-primary/10 to-primary/5 relative overflow-hidden">
             <img
               src={product.images[0] || "/placeholder.svg"}
@@ -368,7 +368,7 @@ export default function ShopPage() {
                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                 >
                   {products.map((product) => (
-                    <ProductCard key={product.id} product={product} />
+                    <ProductCard key={product.productId} product={product} />
                   ))}
                 </motion.div>
               )}

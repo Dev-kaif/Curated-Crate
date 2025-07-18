@@ -188,7 +188,7 @@ export default function ProductDetailPage() {
 
     // Check if product is already in cart, if so, prevent adding to wishlist
     const productIsInCart = state.cart.items.some(
-      (item) => item.productId === product.id
+      (item) => item.productId === product.productId
     );
 
     if (productIsInCart) {
@@ -261,7 +261,7 @@ export default function ProductDetailPage() {
 
   const images = product.images || [];
   const isInWishlist = session
-    ? state.wishlist.some((item) => item.id === product.id)
+    ? state.wishlist.some((item) => item.id === product.productId)
     : false;
   const isInCart = session
     ? state.cart.items.some((item) => item.productId === product._id)
@@ -513,7 +513,7 @@ export default function ProductDetailPage() {
                   </h3>
                   {product && (
                     <ReviewForm
-                      productId={product.id}
+                      productId={product.productId as string}
                       onReviewSubmitted={handleNewReview}
                     />
                   )}
