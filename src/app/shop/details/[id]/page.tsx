@@ -2,13 +2,20 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
-import { useParams,useRouter } from "next/navigation";
-import { Heart, Minus, Plus, Star, ChevronLeft, ShoppingBag } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  Heart,
+  Minus,
+  Plus,
+  Star,
+  ChevronLeft,
+  ShoppingBag,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageLayout } from "@/components/Layout/page-layout";
-import { useStore, type Product } from "@/contexts/store-context";
+import { useStore, type Product } from "@/contexts/store-context"; // Import Product for type
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,10 +33,10 @@ interface Review {
 
 // Review submission form component
 const ReviewForm = ({
-  productId,
+  productId, // Now accepts productId
   onReviewSubmitted,
 }: {
-  productId: string;
+  productId: string; // Product ID is now required
   onReviewSubmitted: (newReview: Review) => void;
 }) => {
   const [rating, setRating] = useState(0);
@@ -52,6 +59,9 @@ const ReviewForm = ({
         throw new Error(data.message || "Failed to submit review.");
       }
       onReviewSubmitted(data.data);
+      // Clear form on success
+      setRating(0);
+      setComment("");
     } catch (err: any) {
       const errorMessage = axios.isAxiosError(err)
         ? err.response?.data?.message || err.message
@@ -100,6 +110,7 @@ const ReviewForm = ({
 
 export default function ProductDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const { state, addToCart, addToWishlist, removeFromWishlist } = useStore();
   const { data: session } = useSession();
   const [quantity, setQuantity] = useState(1);
@@ -109,8 +120,11 @@ export default function ProductDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-    const router = useRouter();
-  
+
+  // State for Add to Cart button loading
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  // State for Add to Wishlist button loading
+  const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -150,20 +164,46 @@ export default function ProductDetailPage() {
   };
 
   const handleAddToCart = async () => {
-    if (!product) return;
-    await addToCart(product._id, quantity);
+    if (!product || !product._id) return;
+    setIsAddingToCart(true); // Set loading state for Add to Cart
+    try {
+      await addToCart(product._id, quantity);
+    } catch (err) {
+      console.error("Error adding to cart:", err);
+    } finally {
+      setIsAddingToCart(false); // Reset loading state
+    }
   };
 
   const handleWishlistToggle = async () => {
-    if (!product) return;
-    const isInWishlist = state.wishlist.some(
-      (item) => item.productId === product._id
+    if (!product || !product._id) return;
+
+    // Check if product is already in cart, if so, prevent adding to wishlist
+    const productIsInCart = state.cart.items.some(
+      (item) => item.productId === product.id
     );
-    console.log(isInWishlist);
-    if (isInWishlist) {
-      await removeFromWishlist(product._id);
-    } else {
-      await addToWishlist(product._id);
+
+    if (productIsInCart) {
+      // Optionally, show a toast notification here
+      console.log("Product is already in cart, cannot add to wishlist.");
+      return;
+    }
+
+    setIsAddingToWishlist(true); // Set loading state for Wishlist
+    try {
+      const isInWishlist = state.wishlist.some(
+        (item) => item._id === product._id
+      );
+
+      if (isInWishlist) {
+        await removeFromWishlist(product._id);
+      } else {
+        await addToWishlist(product._id);
+      }
+    } catch (err) {
+      console.error("Error toggling wishlist:", err);
+    } finally {
+      setIsAddingToWishlist(false); // Reset loading state
     }
   };
 
@@ -295,6 +335,7 @@ export default function ProductDetailPage() {
                     size="sm"
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
                     className="p-2 rounded-full"
+                    disabled={isAddingToCart} // Disable if adding to cart
                   >
                     <Minus className="w-4 h-4" />
                   </Button>
@@ -304,6 +345,7 @@ export default function ProductDetailPage() {
                     size="sm"
                     onClick={() => setQuantity(quantity + 1)}
                     className="p-2 rounded-full"
+                    disabled={isAddingToCart} // Disable if adding to cart
                   >
                     <Plus className="w-4 h-4" />
                   </Button>
@@ -324,8 +366,11 @@ export default function ProductDetailPage() {
                     onClick={handleAddToCart}
                     size="lg"
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 text-lg font-medium rounded-full"
+                    disabled={isAddingToCart} // Disable if adding to cart
                   >
-                    Add to Box - ${(product.price * quantity).toFixed(2)}
+                    {isAddingToCart
+                      ? "Adding..."
+                      : `Add to Box - $${(product.price * quantity).toFixed(2)}`}
                   </Button>
                 )}
 
@@ -334,11 +379,18 @@ export default function ProductDetailPage() {
                   variant="outline"
                   size="lg"
                   className="w-full py-4 text-lg font-medium rounded-full bg-transparent"
+                  disabled={isInCart || isAddingToWishlist} // Disable if in cart or adding to wishlist
                 >
                   <Heart
                     className={`w-5 h-5 mr-2 ${isInWishlist ? "fill-primary text-primary" : ""}`}
                   />
-                  {isInWishlist ? "Remove from Wishlist" : "Add to Wishlist"}
+                  {isAddingToWishlist
+                    ? "Updating Wishlist..."
+                    : isInCart
+                      ? "Already in Cart"
+                      : isInWishlist
+                        ? "Remove from Wishlist"
+                        : "Add to Wishlist"}
                 </Button>
               </div>
             </motion.div>
@@ -435,10 +487,12 @@ export default function ProductDetailPage() {
                   <h3 className="text-2xl font-serif font-bold text-foreground mb-6">
                     Write a Review
                   </h3>
-                  <ReviewForm
-                    productId={product.id}
-                    onReviewSubmitted={handleNewReview}
-                  />
+                  {product && (
+                    <ReviewForm
+                      productId={product.id}
+                      onReviewSubmitted={handleNewReview}
+                    />
+                  )}
                 </CardContent>
               </Card>
             </motion.div>

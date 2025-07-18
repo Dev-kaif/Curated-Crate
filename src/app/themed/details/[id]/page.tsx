@@ -1,8 +1,8 @@
+// src/app/themed/details/[id]/page.tsx
 "use client";
 
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
 import {
   Gift,
   Star,
@@ -22,62 +22,182 @@ import {
   type Product,
 } from "@/contexts/store-context";
 import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import axios from "axios";
 
-// This is a new interface for the Review structure if your themed boxes have them
+// Interface for the Review structure
 interface Review {
   _id: string;
-  name: string;
+  userName: string;
   rating: number;
   comment: string;
+  createdAt: string;
 }
+
+// Review submission form component
+const ReviewForm = ({
+  themedBoxId,
+  onReviewSubmitted,
+}: {
+  themedBoxId: string;
+  onReviewSubmitted: (newReview: Review) => void;
+}) => {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const { data } = await axios.post(
+        `/api/themed-boxes/${themedBoxId}/reviews`,
+        {
+          rating,
+          comment,
+        }
+      );
+
+      if (!data.success) {
+        throw new Error(data.message || "Failed to submit review.");
+      }
+      onReviewSubmitted(data.data);
+      setRating(0);
+      setComment("");
+    } catch (err: any) {
+      const errorMessage = axios.isAxiosError(err)
+        ? err.response?.data?.message || err.message
+        : err.message;
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div>
+        <Label>Rating</Label>
+        <div className="flex items-center space-x-1 mt-1">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <Star
+              key={star}
+              className={`w-6 h-6 cursor-pointer transition-colors ${
+                rating >= star
+                  ? "text-primary fill-primary"
+                  : "text-foreground/30"
+              }`}
+              onClick={() => setRating(star)}
+            />
+          ))}
+        </div>
+      </div>
+      <div>
+        <Label htmlFor="comment">Comment</Label>
+        <Textarea
+          id="comment"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Share your thoughts about this themed box..."
+          className="mt-1"
+        />
+      </div>
+      <Button type="submit" disabled={isLoading || rating === 0}>
+        {isLoading ? "Submitting..." : "Submit Review"}
+      </Button>
+    </form>
+  );
+};
 
 // A new type that includes any extra fields your mock data had
 type ThemedBoxWithDetails = ThemedBox & {
   images: string[];
   reviews: Review[];
   features: string[];
-  originalPrice?: number; // Make originalPrice optional
+  originalPrice?: number;
 };
 
 export default function ThemedBoxDetailPage() {
   const params = useParams();
-  const { dispatch, state } = useStore();
-  const [selectedImage, setSelectedImage] = useState(0);
-
-  // State for fetching data
+  const router = useRouter();
+  const { data: session } = useSession();
+  const [selectedImage, setSelectedImage] = useState(0); // This is the state declaration
   const [themedBox, setThemedBox] = useState<ThemedBoxWithDetails | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isBuying, setIsBuying] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
   useEffect(() => {
-    const fetchThemedBox = async () => {
+    const fetchData = async () => {
       if (!params.id) return;
       setIsLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/themed-boxes/${params.id}`);
-        if (!res.ok) {
+        const [themedBoxRes, reviewsRes] = await Promise.all([
+          axios.get(`/api/themed-boxes/${params.id}`),
+          axios.get(`/api/themed-boxes/${params.id}/reviews`),
+        ]);
+
+        if (themedBoxRes.data) {
+          const formattedBoxData = {
+            ...themedBoxRes.data,
+            id: themedBoxRes.data._id,
+            images: themedBoxRes.data.image
+              ? [
+                  themedBoxRes.data.image,
+                  ...(themedBoxRes.data.images || []).filter(
+                    (img: string) => img !== themedBoxRes.data.image
+                  ),
+                ]
+              : [],
+            features: themedBoxRes.data.features || [],
+          };
+          setThemedBox(formattedBoxData);
+        } else {
           throw new Error("Themed Box not found");
         }
-        const data = await res.json();
-        // Format the data to match the frontend's expected structure
-        const formattedData = {
-          ...data,
-          id: data._id,
-          images: [data.image, ...Array(3).fill(data.image)], // Use main image and create placeholders
-          reviews: data.reviews || [], // Use backend reviews or default to empty array
-          features: data.features || [], // Use backend features or default to empty array
-        };
-        setThemedBox(formattedData);
+
+        if (reviewsRes.data.success) {
+          setReviews(reviewsRes.data.data);
+        }
       } catch (err: any) {
-        setError(err.message);
+        const errorMessage = axios.isAxiosError(err)
+          ? err.response?.data?.message || err.message
+          : err.message;
+        setError(errorMessage);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchThemedBox();
+    fetchData();
   }, [params.id]);
+
+  const handleNewReview = (newReview: Review) => {
+    setReviews((prevReviews) => [newReview, ...prevReviews]);
+    setIsReviewModalOpen(false);
+  };
+
+  const handleBuyNow = async () => {
+    if (!themedBox) return;
+    setIsBuying(true);
+    try {
+      router.push(`/checkout?themedBoxId=${themedBox.id}`);
+    } catch (error) {
+      console.error("Error initiating themed box purchase:", error);
+    } finally {
+      setIsBuying(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -123,31 +243,6 @@ export default function ThemedBoxDetailPage() {
     );
   }
 
-  const isInWishlist = state.wishlist.some((item) => item.id === themedBox.id);
-
-  const handleAddToCart = () => {
-    dispatch({ type: "ADD_TO_CART", item: themedBox, itemType: "themedBox" });
-  };
-
-  const handleWishlistToggle = () => {
-    const productForWishlist: Product = {
-      id: themedBox.id,
-      name: themedBox.name,
-      price: themedBox.price,
-      images: themedBox.images,
-      description: themedBox.description,
-      // Assign a valid placeholder category.
-      category: "Home Goods",
-      stock: 1, // Assume stock is always available for wishlisting
-    };
-
-    if (isInWishlist) {
-      dispatch({ type: "REMOVE_FROM_WISHLIST", productId: themedBox.id });
-    } else {
-      dispatch({ type: "ADD_TO_WISHLIST", product: productForWishlist });
-    }
-  };
-
   const totalValue = themedBox.products.reduce(
     (sum, item) => sum + item.price,
     0
@@ -167,7 +262,7 @@ export default function ThemedBoxDetailPage() {
             className="mb-8"
           >
             <Link
-              href="/themed-boxes"
+              href="/themed"
               className="flex items-center text-foreground/60 hover:text-primary transition-colors"
             >
               <ChevronLeft className="w-4 h-4 mr-1" />
@@ -266,24 +361,13 @@ export default function ThemedBoxDetailPage() {
 
               <div className="space-y-4">
                 <Button
-                  onClick={handleAddToCart}
+                  onClick={handleBuyNow}
                   size="lg"
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 text-lg font-medium rounded-full"
+                  disabled={isBuying}
                 >
-                  <ShoppingBag className="w-5 h-5 mr-2" />
-                  Add to Cart - ${themedBox.price.toFixed(2)}
-                </Button>
-
-                <Button
-                  onClick={handleWishlistToggle}
-                  variant="outline"
-                  size="lg"
-                  className="w-full py-4 text-lg font-medium rounded-full bg-transparent"
-                >
-                  <Heart
-                    className={`w-5 h-5 mr-2 ${isInWishlist ? "fill-primary text-primary" : ""}`}
-                  />
-                  {isInWishlist ? "Remove from Wishlist" : "Add to Wishlist"}
+                  {isBuying ? "Proceeding..." : "Buy Now"} - $
+                  {themedBox.price.toFixed(2)}
                 </Button>
               </div>
             </motion.div>
@@ -368,52 +452,92 @@ export default function ThemedBoxDetailPage() {
               </TabsContent>
 
               <TabsContent value="reviews">
-                <Card className="bg-background border-0 shadow-lg">
-                  <CardContent className="p-8">
-                    <h3 className="text-xl font-serif font-bold text-foreground mb-6">
+                <Card className="p-8 bg-background border-0 shadow-lg">
+                  <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-2xl font-serif font-bold text-foreground">
                       Customer Reviews
-                    </h3>
-                    <div className="space-y-6">
-                      {themedBox.reviews.length > 0 ? (
-                        themedBox.reviews.map((review, index) => (
-                          <motion.div
-                            key={index}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: index * 0.1 }}
-                            className="border-b border-foreground/10 pb-6 last:border-b-0"
-                          >
-                            <div className="flex items-center justify-between mb-3">
-                              <span className="font-medium text-foreground">
-                                {review.name}
-                              </span>
-                              <div className="flex items-center">
-                                {[...Array(review.rating)].map((_, i) => (
-                                  <Star
-                                    key={i}
-                                    className="w-4 h-4 fill-primary text-primary"
-                                  />
-                                ))}
-                              </div>
+                    </h2>
+                    {session && (
+                      <Button
+                        onClick={() => setIsReviewModalOpen(true)}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-6"
+                      >
+                        Write a Review
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid gap-6">
+                    {reviews.length > 0 ? (
+                      reviews.map((review) => (
+                        <div
+                          key={review._id}
+                          className="border-b border-foreground/10 pb-4 last:border-b-0"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="font-medium text-foreground">
+                              {review.userName}
+                            </span>
+                            <div className="flex items-center">
+                              {[...Array(review.rating)].map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className="w-4 h-4 fill-primary text-primary"
+                                />
+                              ))}
                             </div>
-                            <p className="text-foreground/70 leading-relaxed">
-                              {review.comment}
-                            </p>
-                          </motion.div>
-                        ))
-                      ) : (
-                        <p className="text-center text-foreground/70">
-                          No reviews for this box yet.
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
+                          </div>
+                          <p className="text-foreground/70 leading-relaxed">
+                            {review.comment}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-foreground/70 text-center py-8">
+                        No reviews yet. Be the first to write one!
+                      </p>
+                    )}
+                  </div>
                 </Card>
               </TabsContent>
             </Tabs>
           </motion.div>
         </div>
       </div>
+
+      {/* Review Modal */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isReviewModalOpen ? 1 : 0 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center"
+        onClick={() => setIsReviewModalOpen(false)}
+        style={{ pointerEvents: isReviewModalOpen ? "auto" : "none" }}
+      >
+        <motion.div
+          initial={{ scale: 0.9, y: 20 }}
+          animate={{
+            scale: isReviewModalOpen ? 1 : 0.9,
+            y: isReviewModalOpen ? 0 : 20,
+          }}
+          exit={{ scale: 0.9, y: 20 }}
+          className="bg-background rounded-2xl shadow-xl w-full max-w-md"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Card className="border-0">
+            <CardContent className="p-8">
+              <h3 className="text-2xl font-serif font-bold text-foreground mb-6">
+                Write a Review
+              </h3>
+              {themedBox && (
+                <ReviewForm
+                  themedBoxId={themedBox.id}
+                  onReviewSubmitted={handleNewReview}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      </motion.div>
     </PageLayout>
   );
 }

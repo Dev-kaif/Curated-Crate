@@ -1,76 +1,87 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Import useEffect
 import { Heart, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageLayout } from "@/components/Layout/page-layout";
 import { useStore, type Product } from "@/contexts/store-context";
 import Link from "next/link";
+import axios from "axios"; // Import axios
+import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton for loading state
 
 export default function WishlistPage() {
-  const { state, dispatch } = useStore();
+  const { state, addToCart, removeFromWishlist, dispatch } = useStore(); // Destructure dispatch
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
-  console.log(state)
-  const moveToCart = async (product: Product) => {
-    setLoadingItemId(product.id);
-    try {
-      // 1. Add the item to the cart via API
-      const cartRes = await fetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "product",
-          itemId: product.id,
-          quantity: 1,
-        }),
-      });
+  const [isLoadingWishlist, setIsLoadingWishlist] = useState(true); // New loading state for initial fetch
 
-      if (!cartRes.ok) {
-        throw new Error("Failed to add item to cart");
+  console.log(state.wishlist);
+
+  // Fetch wishlist on component mount
+  useEffect(() => {
+    const fetchWishlist = async () => {
+      setIsLoadingWishlist(true);
+      try {
+        const response = await axios.get("/api/wishlist");
+        if (response.data.success) {
+          dispatch({
+            type: "SET_WISHLIST",
+            payload: response.data.data.items || [],
+          });
+        } else {
+          console.error("Failed to fetch wishlist:", response.data.message);
+          dispatch({ type: "SET_WISHLIST", payload: [] });
+        }
+      } catch (error) {
+        console.error("Error fetching wishlist:", error);
+        dispatch({ type: "SET_WISHLIST", payload: [] });
+      } finally {
+        setIsLoadingWishlist(false);
       }
+    };
+    fetchWishlist();
+  }, [dispatch]); // Depend on dispatch to ensure it's stable
 
-      // Update the cart state locally
-      dispatch({ type: "ADD_TO_CART", item: product, itemType: "product" });
-
-      // 2. Remove the item from the wishlist (this function already handles API + state)
-      await removeFromWishlist(product.id, true);
-    } catch (error) {
+  const moveToCart = async (product: Product) => {
+    setLoadingItemId(product.productId as string);
+    try {
+      await addToCart(product.productId as string, 1);
+    } catch (error: any) {
       console.error("Error moving to cart:", error);
-      // You could show an error toast here
     } finally {
       setLoadingItemId(null);
     }
   };
 
-  const removeFromWishlist = async (
-    productId: string,
-    isMovingToCart: boolean = false
-  ) => {
-    if (!isMovingToCart) {
-      setLoadingItemId(productId);
-    }
-    try {
-      // Call the backend to remove the item from the wishlist
-      const res = await fetch(`/api/wishlist/${productId}`, {
-        method: "DELETE",
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to remove item from wishlist");
-      }
-
-      // If successful, update the local state
-      dispatch({ type: "REMOVE_FROM_WISHLIST", productId });
-    } catch (error) {
-      console.error("Error removing from wishlist:", error);
-    } finally {
-      if (!isMovingToCart) {
-        setLoadingItemId(null);
-      }
-    }
-  };
+  if (isLoadingWishlist) {
+    return (
+      <PageLayout>
+        <div className="py-20 px-6">
+          <div className="container mx-auto text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="max-w-md mx-auto space-y-6"
+            >
+              <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                <Heart className="w-12 h-12 text-primary" />
+              </div>
+              <h1 className="text-3xl font-serif font-bold text-foreground">
+                Loading Wishlist...
+              </h1>
+              <Skeleton className="h-6 w-48 mx-auto mt-4" />
+              <div className="grid grid-cols-2 gap-4 mt-8">
+                <Skeleton className="h-12 rounded-full" />
+                <Skeleton className="h-12 rounded-full" />
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
 
   if (state.wishlist.length === 0) {
     return (
@@ -124,64 +135,83 @@ export default function WishlistPage() {
           </motion.div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {state.wishlist.map((product, index) => (
-              <motion.div
-                key={product.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-              >
-                <Card className="overflow-hidden bg-background border-0 shadow-lg hover:shadow-xl transition-all duration-300 group">
-                  <Link href={`/shop/details/${product.id}`}>
-                    <div className="aspect-square bg-gradient-to-br from-primary/10 to-primary/5 relative overflow-hidden">
-                      <img
-                        src={product.imageUrl || "/placeholder.svg"}
-                        alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-                  </Link>
-                  <CardContent className="p-6">
-                    <Link href={`/shop/details/${product.id}`}>
-                      <h3 className="font-serif font-bold text-lg text-foreground mb-2 hover:text-primary transition-colors truncate">
-                        {product.name}
-                      </h3>
-                    </Link>
-                    <p className="text-foreground/60 text-sm mb-3 line-clamp-2 h-10">
-                      {product.description}
-                    </p>
-                    <p className="text-primary font-bold text-xl mb-4">
-                      ${product.price.toFixed(2)}
-                    </p>
+            {state.wishlist.map((product, index) => {
+              // Check if the product is already in the cart
+              const isInCart = state.cart.items.some(
+                (item) => item.productId === product.productId
+              );
 
-                    <div className="space-y-2">
-                      <Button
-                        onClick={() => moveToCart(product)}
-                        disabled={loadingItemId === product.id}
-                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-full"
-                      >
-                        {loadingItemId === product.id ? (
-                          "Moving..."
+              return (
+                <motion.div
+                  key={product.productId}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                >
+                  <Card className="overflow-hidden bg-background border-0 shadow-lg hover:shadow-xl transition-all duration-300 group">
+                    <Link href={`/shop/details/${product.productId}`}>
+                      <div className="aspect-square bg-gradient-to-br from-primary/10 to-primary/5 relative overflow-hidden">
+                        <img
+                          src={product.imageUrl || "/placeholder.svg"} // FIX: Use product.imageUrl directly
+                          alt={product.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
+                    </Link>
+                    <CardContent className="p-6">
+                      <Link href={`/shop/details/${product.productId}`}>
+                        <h3 className="font-serif font-bold text-lg text-foreground mb-2 hover:text-primary transition-colors truncate">
+                          {product.name}
+                        </h3>
+                      </Link>
+                      <p className="text-foreground/60 text-sm mb-3 line-clamp-2 h-10">
+                        {product.description}
+                      </p>
+                      <p className="text-primary font-bold text-xl mb-4">
+                        ${product.price.toFixed(2)}
+                      </p>
+
+                      <div className="space-y-2">
+                        {isInCart ? (
+                          <Button
+                            onClick={() => (window.location.href = "/cart")} // Direct navigation to cart
+                            className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground rounded-full"
+                          >
+                            <ShoppingBag className="w-4 h-4 mr-2" /> In Cart
+                          </Button>
                         ) : (
-                          <>
-                            <ShoppingBag className="w-4 h-4 mr-2" />
-                            Move to Box
-                          </>
+                          <Button
+                            onClick={() => moveToCart(product)}
+                            disabled={loadingItemId === product.productId}
+                            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-full"
+                          >
+                            {loadingItemId === product.productId ? (
+                              "Moving..."
+                            ) : (
+                              <>
+                                <ShoppingBag className="w-4 h-4 mr-2" /> Move to
+                                Cart
+                              </>
+                            )}
+                          </Button>
                         )}
-                      </Button>
-                      <Button
-                        onClick={() => removeFromWishlist(product.id)}
-                        disabled={loadingItemId === product.id}
-                        variant="outline"
-                        className="w-full rounded-full bg-transparent"
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
+
+                        <Button
+                          onClick={() =>
+                            removeFromWishlist(product.productId as string)
+                          } // Call removeFromWishlist from useStore
+                          disabled={loadingItemId === product.productId}
+                          variant="outline"
+                          className="w-full rounded-full bg-transparent"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </div>

@@ -1,3 +1,4 @@
+// src/app/themed/page.tsx
 "use client";
 
 import { motion } from "framer-motion";
@@ -13,6 +14,7 @@ import {
   type ThemedBox,
   type Product,
 } from "@/contexts/store-context";
+import { useRouter } from "next/navigation"; // Import useRouter
 
 // A helper to map a name to a Lucide icon component
 const iconMap: { [key: string]: React.ElementType } = {
@@ -27,7 +29,10 @@ const iconMap: { [key: string]: React.ElementType } = {
 
 // The card component for a single themed box
 const ThemedBoxCard = ({ box }: { box: ThemedBox }) => {
-  const { dispatch } = useStore();
+  // No longer directly using addToCart from useStore here
+  const router = useRouter(); // Initialize useRouter
+  const [isBuying, setIsBuying] = useState(false); // Changed from isAdding to isBuying
+
   // Find a matching icon, or use a default one
   const IconComponent = Object.keys(iconMap).find((key) =>
     box.name.includes(key)
@@ -35,9 +40,18 @@ const ThemedBoxCard = ({ box }: { box: ThemedBox }) => {
     ? iconMap[Object.keys(iconMap).find((key) => box.name.includes(key))!]
     : iconMap.Default;
 
-  const handleAddToCart = () => {
-    dispatch({ type: "ADD_TO_CART", item: box, itemType: "themedBox" });
-    // You would typically show a success toast/notification here
+  const handleBuyNow = async () => {
+    // Renamed function
+    setIsBuying(true); // Set loading state
+    try {
+      // Navigate directly to checkout, passing the themedBoxId
+      router.push(`/checkout?themedBoxId=${box.id}`);
+    } catch (error) {
+      console.error("Error initiating themed box purchase:", error);
+      // You could add an error toast notification here
+    } finally {
+      setIsBuying(false); // Reset loading state
+    }
   };
 
   return (
@@ -48,7 +62,7 @@ const ThemedBoxCard = ({ box }: { box: ThemedBox }) => {
     >
       <Card className="overflow-hidden bg-background border-0 shadow-lg hover:shadow-xl transition-all duration-300 group h-full flex flex-col">
         <div className="relative">
-          <Link href={`/themed-boxes/${box.id}`}>
+          <Link href={`/themed/details/${box.id}`}>
             <div className="aspect-square bg-gradient-to-br from-primary/10 to-primary/5 relative overflow-hidden">
               <img
                 src={box.image || "/placeholder.svg"}
@@ -64,7 +78,7 @@ const ThemedBoxCard = ({ box }: { box: ThemedBox }) => {
 
         <CardContent className="p-6 flex flex-col flex-grow">
           <div className="flex-grow">
-            <Link href={`/themed-boxes/${box.id}`}>
+            <Link href={`/themed/details/${box.id}`}>
               <h3 className="font-serif font-bold text-xl text-foreground mb-2 hover:text-primary">
                 {box.name}
               </h3>
@@ -98,17 +112,20 @@ const ThemedBoxCard = ({ box }: { box: ThemedBox }) => {
             </div>
 
             <div className="space-y-2">
-              <Link href={`/themed-boxes/${box.id}`}>
+              <Link href={`/themed/details/${box.id}`}>
                 <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-full">
                   View Details
                 </Button>
               </Link>
+              {/* Changed to Buy Now button */}
               <Button
                 variant="outline"
                 className="w-full rounded-full bg-transparent text-sm"
-                onClick={handleAddToCart}
+                onClick={handleBuyNow} // Call new function
+                disabled={isBuying} // Use new loading state
               >
-                Add to Cart
+                {isBuying ? "Proceeding..." : "Buy Now"}{" "}
+                {/* Change button text */}
               </Button>
             </div>
           </div>

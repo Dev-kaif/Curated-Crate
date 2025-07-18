@@ -18,7 +18,8 @@ export interface IProduct {
 
 export interface IReview {
   _id?: Types.ObjectId;
-  productId: Types.ObjectId;
+  productId?: Types.ObjectId;
+  themedBoxId?: Types.ObjectId; // Add themedBoxId
   userId: Types.ObjectId;
   userName: string;
   rating: number;
@@ -28,20 +29,20 @@ export interface IReview {
 }
 
 export interface IUser {
-  _id?: string | Types.ObjectId; 
+  _id?: string | Types.ObjectId;
   email: string;
-  password?: string; 
-  name?: string; 
-  firstName?: string; 
-  lastName?: string;  
-  phone?: string; 
-  profilePicture?: string; 
-  role: 'user' | 'admin'; 
-  addresses?: IAddress[]; 
-  passwordResetToken?: string; 
-  passwordResetExpires?: Date; 
-  createdAt?: string; 
-  updatedAt?: string; 
+  password?: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  profilePicture?: string;
+  role: "user" | "admin";
+  addresses?: IAddress[];
+  passwordResetToken?: string;
+  passwordResetExpires?: Date;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AuthenticatedUser {
@@ -54,12 +55,12 @@ export interface AuthenticatedUser {
 export interface IAddress {
   _id?: Types.ObjectId | string;
   street: string;
-  apartment?: string; // Add this
+  apartment?: string; 
   city: string;
   state: string;
   zipCode: string;
   country: string;
-  label?: 'Home' | 'Work' | 'Other'; // Make it optional since it has a default
+  label?: "Home" | "Work" | "Other"; // Make it optional since it has a default
   isDefault?: boolean;
 }
 
@@ -84,7 +85,7 @@ export interface ICart {
 
 export interface ICartItemFrontend {
   _id: string;
-  productId: string; 
+  productId: string;
   name: string;
   imageUrl: string;
   price: number;
@@ -113,8 +114,8 @@ export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 export type PaymentMethod = "card" | "cash_on_delivery" | "paypal";
 
 export interface IOrder {
-  _id?: Types.ObjectId | string; 
-  userId: Types.ObjectId;
+  _id?: Types.ObjectId | string;
+  userId: Types.ObjectId | IUser;
   items: IOrderItem[];
   shippingAddress: IAddress;
   billingAddress?: IAddress;
@@ -138,37 +139,34 @@ export interface IOrder {
 }
 
 export interface IWishlistItem {
-  _id?: Types.ObjectId | string; 
-  productId: Types.ObjectId | string; 
-  addedAt: Date; 
+  _id?: Types.ObjectId | string;
+  productId: Types.ObjectId | string;
+  addedAt: Date;
 }
 
 export interface IWishlist {
   _id?: Types.ObjectId | string;
-  userId: Types.ObjectId | string; 
-  items: IWishlistItem[]; 
+  userId: Types.ObjectId | string;
+  items: IWishlistItem[];
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-
 export interface IWishlistItemFrontend {
-  _id: string; 
-  productId: string; 
+  _id: string;
+  productId: string;
   name: string;
   imageUrl: string;
   price: number;
-  oldPrice?: number; 
-  isNewlyReleased?: boolean; 
-  isOnSale?: boolean; 
-  addedAt: string; 
-  stock?: number; 
+  oldPrice?: number;
+  isNewlyReleased?: boolean;
+  isOnSale?: boolean;
+  addedAt: string;
+  stock?: number;
 }
 
-
-
 export interface IPet {
-  _id: string; 
+  _id: string;
   name: string;
   category: string;
   type: string;
@@ -177,24 +175,23 @@ export interface IPet {
   gender: "Male" | "Female" | "N/A";
   size: "Tiny" | "Small" | "Medium" | "Large";
   weight: number;
-  price: number; 
-  location: string; 
-  images: string[]; 
+  price: number;
+  location: string;
+  images: string[];
   description?: string;
   isNewlyAdded?: boolean;
-  availableDate?: string; 
-  breed?: string; 
-  dateOfBirth?: string; 
-  additionalInfo?: string[]; 
-  mapLocation?: { 
+  availableDate?: string;
+  breed?: string;
+  dateOfBirth?: string;
+  additionalInfo?: string[];
+  mapLocation?: {
     address: string;
     coords: { lat: number; lng: number };
-    link: string; 
+    link: string;
   };
   createdAt?: string;
   updatedAt?: string;
 }
-
 
 export interface ITeamMember {
   _id: string;
@@ -215,19 +212,19 @@ export interface ITeamMember {
   };
   imageUrl: string;
   showOnHome?: boolean;
-  createdAt?: string; 
+  createdAt?: string;
   updatedAt?: string;
 }
 
 export interface IGalleryImage {
-  _id?: string | Types.ObjectId; 
-  imageUrl: string; 
-  createdAt?: string; 
-  updatedAt?: string; 
+  _id?: string | Types.ObjectId;
+  imageUrl: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface IReservation {
-  _id: string | Types.ObjectId; 
+  _id: string | Types.ObjectId;
   fullName: string;
   email: string;
   phone: string;
@@ -235,9 +232,9 @@ export interface IReservation {
   species: string;
   breed: string;
   reason: string;
-  specialNote?: string; 
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed'; 
-  adminNotes?: string; 
+  specialNote?: string;
+  status: "pending" | "confirmed" | "cancelled" | "completed";
+  adminNotes?: string;
   createdAt: Date;
   updatedAt: Date;
 }

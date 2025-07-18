@@ -18,72 +18,85 @@ import { PageLayout } from "@/components/Layout/page-layout";
 import { useStore, type Product } from "@/contexts/store-context";
 import Link from "next/link";
 import axios from "axios";
+import { useRouter } from "next/navigation"; // Import useRouter
 
 const ProductCard = ({ product }: { product: Product }) => {
-  const { addToCart } = useStore();
+  const { addToCart, state } = useStore(); // Access state to check cart items
+  const router = useRouter(); // Initialize useRouter
   const [isAdding, setIsAdding] = useState(false);
 
-  const handleAddToCart = async () => {
-    setIsAdding(true);
-    try {
-      await addToCart(product.id, 1);
-      // You can add a success toast notification here
-    } catch (error) {
-      console.error("Error adding to cart:", error);
-      // You can add an error toast notification here
-    } finally {
-      setIsAdding(false);
+  // Check if the product is already in the cart
+  const isInCart = state.cart.items.some(
+    (item) => item.productId === product.id
+  );
+
+  const handleButtonClick = async () => {
+    if (isInCart) {
+      router.push("/cart"); // Redirect to cart if already in cart
+    } else {
+      setIsAdding(true);
+      try {
+        await addToCart(product.id, 1); // Pass itemType
+        // You can add a success toast notification here
+      } catch (error) {
+        console.error("Error adding to cart:", error);
+        // You can add an error toast notification here
+      } finally {
+        setIsAdding(false);
+      }
     }
   };
 
   return (
-    <Link href={`/shop/details/${product.id}`}>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        whileHover={{ y: -5 }}
-        transition={{ duration: 0.3 }}
-      >
-        <Card className="overflow-hidden bg-background border-0 shadow-lg hover:shadow-xl transition-all duration-300 group">
-          <Link href={`/shop/details/${product.id}`}>
-            <div className="aspect-square bg-gradient-to-br from-primary/10 to-primary/5 relative overflow-hidden">
-              <img
-                src={product.images[0] || "/placeholder.svg"}
-                alt={product.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              />
-            </div>
-          </Link>
-          <CardContent className="p-6">
-            <h3 className="font-serif font-bold text-lg text-foreground mb-2 hover:text-primary transition-colors truncate">
-              {product.name}
-            </h3>
-            <p className="text-foreground/60 text-sm mb-3 line-clamp-2 h-10">
-              {product.description}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -5 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card className="overflow-hidden bg-background border-0 shadow-lg hover:shadow-xl transition-all duration-300 group">
+        <Link href={`/shop/details/${product.id}`}>
+          <div className="aspect-square bg-gradient-to-br from-primary/10 to-primary/5 relative overflow-hidden">
+            <img
+              src={product.images[0] || "/placeholder.svg"}
+              alt={product.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+          </div>
+        </Link>
+        <CardContent className="p-6">
+          <h3 className="font-serif font-bold text-lg text-foreground mb-2 hover:text-primary transition-colors truncate">
+            {product.name}
+          </h3>
+          <p className="text-foreground/60 text-sm mb-3 line-clamp-2 h-10">
+            {product.description}
+          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-primary font-bold text-xl">
+              ${product.price.toFixed(2)}
             </p>
-            <div className="flex items-center justify-between">
-              <p className="text-primary font-bold text-xl">
-                ${product.price.toFixed(2)}
-              </p>
-              <Button
-                onClick={handleAddToCart}
-                size="sm"
-                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-4"
-                disabled={isAdding}
-              >
-                {isAdding ? (
-                  "Adding..."
-                ) : (
-                  <>
-                    <ShoppingBag className="w-4 h-4 mr-2" /> Add to Box
-                  </>
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </Link>
+            <Button
+              onClick={handleButtonClick} // Use the new handler
+              size="sm"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-4"
+              disabled={isAdding} // Disable only when adding
+            >
+              {isAdding ? (
+                "Adding..."
+              ) : isInCart ? (
+                <>
+                  <ShoppingBag className="w-4 h-4 mr-2" /> Go to Cart
+                </>
+              ) : (
+                <>
+                  <ShoppingBag className="w-4 h-4 mr-2" /> Add to Box
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 };
 
@@ -152,8 +165,6 @@ export default function ShopPage() {
     "Home Goods",
     "Apparel",
   ];
-
-  // Inside your ShopPage component
 
   useEffect(() => {
     const fetchProducts = async () => {
