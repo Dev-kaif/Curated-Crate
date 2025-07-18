@@ -12,12 +12,11 @@ export async function GET(req: NextRequest) {
 
     if (!query) {
       return NextResponse.json(
-        { message: "Search query is required" },
+        { success: false, message: "Search query is required" },
         { status: 400 }
       );
     }
 
-    // Create a regex for case-insensitive search
     const regex = new RegExp(query, "i");
 
     // Search for individual products
@@ -35,12 +34,20 @@ export async function GET(req: NextRequest) {
     }).limit(5);
 
     return NextResponse.json({
-      products,
-      themedBoxes,
+      success: true,
+      data: {
+        products,
+        themedBoxes,
+      },
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error("Error performing search:", error);
     return NextResponse.json(
-      { message: "Error performing search", error },
+      {
+        success: false,
+        message: "Error performing search",
+        error: error.message,
+      },
       { status: 500 }
     );
   }

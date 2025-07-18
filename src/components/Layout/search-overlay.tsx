@@ -1,100 +1,207 @@
-"use client"
+"use client";
 
-import type React from "react"
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
+import { Search, X, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useDebounce } from "@/hooks/use-debounce";
+import axios from "axios";
+import Link from "next/link";
+import { Product, ThemedBox } from "@/contexts/store-context";
 
-import { motion, AnimatePresence } from "framer-motion"
-import { useState, useEffect } from "react"
-import { X, Search } from "lucide-react"
-import { useStore } from "@/contexts/store-context"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+type SearchResultItem = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  imageUrl: string;
+} & ({ type: "product" } | { type: "themedBox" });
 
-export const SearchOverlay = () => {
-  const { state, dispatch } = useStore()
-  const [localQuery, setLocalQuery] = useState("")
+interface SearchOverlayProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const SearchOverlay = ({ isOpen, onClose }: SearchOverlayProps) => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (state.isSearchOpen) {
-      document.body.style.overflow = "hidden"
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
     } else {
-      document.body.style.overflow = "unset"
+      setSearchTerm("");
+      setSearchResults([]);
+      setError(null);
     }
+  }, [isOpen]);
 
-    return () => {
-      document.body.style.overflow = "unset"
-    }
-  }, [state.isSearchOpen])
+  useEffect(() => {
+    const fetchResults = async () => {
+      if (!debouncedSearchTerm) {
+        setSearchResults([]);
+        setIsLoading(false);
+        setError(null);
+        return;
+      }
 
-  const handleSearch = () => {
-    dispatch({ type: "SET_SEARCH_QUERY", query: localQuery })
-    dispatch({ type: "TOGGLE_SEARCH", isOpen: false })
-    // Here you would typically navigate to search results
-  }
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await axios.get(
+          `/api/search?q=${debouncedSearchTerm}`
+        );
+        if (response.data.success) {
+          // FIX: Correctly map imageUrl for products and ensure type casting
+          const products: SearchResultItem[] = response.data.data.products.map(
+            (p: any) => ({
+              ...p,
+              id: p._id,
+              imageUrl:
+                p.images && p.images.length > 0
+                  ? p.images[0]
+                  : "/placeholder.svg", // Ensure imageUrl is set from images[0]
+              type: "product" as const,
+            })
+          );
+          const themedBoxes: SearchResultItem[] =
+            response.data.data.themedBoxes.map((tb: any) => ({
+              ...tb,
+              id: tb._id,
+              imageUrl: tb.image || "/placeholder.svg", // ThemedBox uses 'image' property
+              type: "themedBox" as const,
+            }));
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSearch()
-    }
-    if (e.key === "Escape") {
-      dispatch({ type: "TOGGLE_SEARCH", isOpen: false })
-    }
-  }
+          setSearchResults([...products, ...themedBoxes]);
+        } else {
+          setError(response.data.message || "Failed to fetch search results.");
+          setSearchResults([]);
+        }
+      } catch (err: any) {
+        console.error("Search API error:", err);
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            "An error occurred during search."
+        );
+        setSearchResults([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchResults();
+  }, [debouncedSearchTerm]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      {state.isSearchOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-[100] bg-foreground/80 backdrop-blur-sm flex items-center justify-center p-6"
-          onClick={() => dispatch({ type: "TOGGLE_SEARCH", isOpen: false })}
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-md flex flex-col"
+    >
+      <div className="container mx-auto px-6 py-4 flex items-center justify-between border-b border-foreground/10">
+        <div className="relative flex-grow mr-4">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground/60 h-5 w-5" />
+          <Input
+            ref={inputRef}
+            type="text"
+            placeholder="Search products, themed boxes..."
+            className="w-full pl-10 pr-4 py-2 text-lg rounded-full border-foreground/20 focus:border-primary focus:ring-0"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          className="rounded-full hover:bg-foreground/10"
+          aria-label="Close search"
         >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
-            className="w-full max-w-2xl bg-background rounded-2xl p-8 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-serif font-bold text-foreground">Search Products</h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => dispatch({ type: "TOGGLE_SEARCH", isOpen: false })}
-                className="p-2 hover:bg-foreground/5 rounded-full"
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
+          <X className="w-6 h-6 text-foreground" />
+        </Button>
+      </div>
 
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-foreground/50" />
-              <Input
-                type="text"
-                placeholder="Search for candles, chocolates, soaps..."
-                value={localQuery}
-                onChange={(e) => setLocalQuery(e.target.value)}
-                onKeyDown={handleKeyPress}
-                className="pl-12 pr-4 py-4 text-lg border-2 border-foreground/10 focus:border-primary rounded-full"
-                autoFocus
-              />
-            </div>
-
-            <div className="flex justify-center mt-6">
-              <Button
-                onClick={handleSearch}
-                className="px-8 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full"
+      <div className="flex-grow overflow-y-auto container mx-auto px-6 py-8">
+        {isLoading ? (
+          <div className="text-center py-12">
+            <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-4" />
+            <p className="text-foreground/70">Searching...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12 text-destructive">
+            <p>{error}</p>
+          </div>
+        ) : searchResults.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {searchResults.map((item) => (
+              <Link
+                key={item.id}
+                href={
+                  item.type === "product"
+                    ? `/shop/details/${item.id}`
+                    : `/themed/details/${item.id}`
+                }
+                onClick={onClose}
               >
-                Search Products
-              </Button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
-}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex items-center space-x-4 p-4 bg-background border border-foreground/10 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                >
+                  <img
+                    src={item.imageUrl || "/placeholder.svg"}
+                    alt={item.name}
+                    className="w-16 h-16 object-cover rounded-md flex-shrink-0"
+                  />
+                  <div>
+                    <h3 className="font-medium text-foreground text-lg">
+                      {item.name}
+                    </h3>
+                    <p className="text-sm text-foreground/70 line-clamp-1">
+                      {item.description}
+                    </p>
+                    <p className="text-primary font-bold">
+                      ${item.price.toFixed(2)}
+                    </p>
+                  </div>
+                </motion.div>
+              </Link>
+            ))}
+          </div>
+        ) : searchTerm && !isLoading ? (
+          <div className="text-center py-12 text-foreground/70">
+            <p>No results found for "{searchTerm}".</p>
+          </div>
+        ) : (
+          <div className="text-center py-12 text-foreground/70">
+            <p>Start typing to search for products or themed boxes.</p>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+};
