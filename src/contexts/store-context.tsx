@@ -1,3 +1,4 @@
+// src/contexts/store-context.tsx
 "use client";
 
 import type React from "react";
@@ -12,12 +13,17 @@ import axios from "axios";
 
 // --- INTERFACES ---
 export interface Product {
-  id: string;
+  id: string; // Used in frontend (e.g., ShopPage, ThemedBoxDetailPage)
+  _id?: string; // Backend _id often comes back
   name: string;
   description: string;
   price: number;
   images: string[];
+  imageUrl?: string;
   stock: number;
+  category?: string; // Added from IProduct type in types/index.d.ts
+  productId?: string; // Added from IProduct type in types/index.d.ts
+  compareAtPrice?: number; // Added from IProduct type in types/index.d.ts
 }
 
 export interface CartItem {
@@ -28,6 +34,20 @@ export interface CartItem {
   price: number;
   quantity: number;
   stock: number;
+}
+
+// Redefined ThemedBox to match the populated data structure received by the frontend
+export interface ThemedBox {
+  id: string; // Frontend uses 'id' instead of '_id'
+  _id?: string; // Keep _id as optional in case it's still present
+  name: string;
+  description: string;
+  price: number;
+  image: string; // Direct image URL
+  products: Product[]; // Populated product objects
+  features?: string[]; // Optional features array
+  isActive: boolean;
+  originalPrice?: number; // From ThemedBoxWithDetails in themed/details/[id]/page.tsx
 }
 
 interface StoreState {
@@ -45,19 +65,20 @@ type StoreAction =
 // --- CONTEXT & REDUCER ---
 interface StoreContextType {
   state: StoreState;
-  dispatch?: any;
+  dispatch: React.Dispatch<StoreAction>;
   addToCart: (productId: string, quantity: number) => Promise<void>;
   removeFromCart: (cartItemId: string) => Promise<void>;
   updateQuantity: (cartItemId: string, quantity: number) => Promise<void>;
   addToWishlist: (productId: string) => Promise<void>;
   removeFromWishlist: (productId: string) => Promise<void>;
+  clearCart: () => void; // NEW: Function to clear the cart state
 }
 
 const StoreContext = createContext<StoreContextType | null>(null);
 
 const initialState: StoreState = {
   cart: { items: [], totalPrice: 0 },
-  wishlist: [], // NOTE: Correctly initialized as an empty array.
+  wishlist: [],
 };
 
 function storeReducer(state: StoreState, action: StoreAction): StoreState {
@@ -65,7 +86,6 @@ function storeReducer(state: StoreState, action: StoreAction): StoreState {
     case "SET_CART":
       return { ...state, cart: action.payload };
     case "SET_WISHLIST":
-      // NOTE: Ensures the wishlist is always an array, even if the payload is bad.
       return { ...state, wishlist: action.payload || [] };
     default:
       return state;
@@ -100,7 +120,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       try {
         const [cartRes, wishlistRes] = await Promise.all([
           axios.get("/api/cart"),
-          axios.get("/api/wishlist"), // Assuming you have this API endpoint
+          axios.get("/api/wishlist"),
         ]);
 
         if (cartRes.data.success) {
@@ -114,7 +134,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error("Failed to initialize store:", error);
-        // On failure, ensure state remains valid to prevent UI crashes.
         dispatch({ type: "SET_WISHLIST", payload: [] });
       }
     };
@@ -131,6 +150,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           type: "SET_CART",
           payload: transformBackendCart(data.data),
         });
+      }
+      // NEW LOGIC: If item was successfully added to cart, remove it from wishlist
+      // Remove the single product from wishlist
+      const isInWishlist = state.wishlist.some(
+        (item) => item._id === productId
+      );
+      if (isInWishlist) {
+        removeFromWishlist(productId);
       }
     } catch (error) {
       console.error("Failed to add to cart:", error);
@@ -191,6 +218,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // NEW: clearCart function
+  const clearCart = () => {
+    dispatch({ type: "SET_CART", payload: { items: [], totalPrice: 0 } });
+  };
+
   return (
     <StoreContext.Provider
       value={{
@@ -200,6 +232,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         updateQuantity,
         addToWishlist,
         removeFromWishlist,
+        dispatch,
+        clearCart, // NEW: Expose clearCart
       }}
     >
       {children}
