@@ -17,8 +17,8 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function AdminLogin() {
-  const [email, setEmail] = useState("admin@curatedcrate.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("admin@gmail.in");
+  const [password, setPassword] = useState("admin@123");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
