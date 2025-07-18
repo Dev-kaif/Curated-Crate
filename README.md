@@ -2,6 +2,30 @@
 
 Curated Crate is a modern e-commerce platform for creating and purchasing personalized gift boxes. It allows users to select from a variety of artisanal products to build their own unique "crate" or choose from pre-designed themed boxes. The platform is built with a focus on a clean, user-friendly interface and a robust backend to handle products, orders, and user accounts.
 
+## Live Demo
+
+- **Website:** [https://curated-crate.vercel.app](https://curated-crate.vercel.app)
+- **Admin Panel:** [https://curated-crate.vercel.app/admin/login](https://curated-crate.vercel.app/admin/login)
+
+## Demo Credentials
+
+- **Admin:**
+  - **Email:** `admin@gmail.in`
+  - **Password:** `admin@123`
+- **User:**
+  - **Email:** `user@gmail.com`
+  - **Password:** `user1234`
+
+## Demo Image :
+
+### user :
+
+![/demo/User/1.png](/demo/User/1.png)
+
+**Homepage:**
+
+**Admin Dashboard:**
+
 ## Features
 
 - **Customer-Facing:**
@@ -12,12 +36,15 @@ Curated Crate is a modern e-commerce platform for creating and purchasing person
   - Checkout and payment processing (mocked)
   - Manage user account (profile, addresses, order history)
   - Product and themed box reviews
+
 - **Admin Panel:**
+  - Admin uthentication (Login)
   - Dashboard with sales and user statistics
   - Order management
   - Product and themed box creation and management
   - Customer management
   - Analytics and reporting
+  - Coupouns Creation
 
 ## Tech Stack
 
