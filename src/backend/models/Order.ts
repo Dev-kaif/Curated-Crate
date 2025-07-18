@@ -2,18 +2,16 @@
 import mongoose, { Schema, Model, Document, Types } from "mongoose";
 import { IOrder, IOrderItem, IAddress } from "@/types";
 
-// Define the Mongoose Document type for Order Item
 interface OrderItemDocument extends Omit<IOrderItem, "_id">, Document {
   productId: Types.ObjectId;
 }
 
-
-// Define the Mongoose Document type for Order
 interface OrderDocument extends Omit<IOrder, "_id">, Document {
   userId: Types.ObjectId;
   items: Types.DocumentArray<OrderItemDocument>;
-  shippingAddress: IAddress; // Use IAddress directly
-  billingAddress?: IAddress; // Use IAddress directly
+  shippingAddress: IAddress;
+  billingAddress?: IAddress;
+  appliedDiscountCode?: string;
 }
 
 const orderItemSchema = new Schema<OrderItemDocument>(
@@ -27,13 +25,16 @@ const orderItemSchema = new Schema<OrderItemDocument>(
   { _id: true }
 );
 
-const addressSchema = new Schema<IAddress>( // Use IAddress directly here too
+const addressSchema = new Schema<IAddress>(
   {
     street: { type: String, required: true },
+    apartment: { type: String }, // Added apartment
     city: { type: String, required: true },
     state: { type: String, required: true },
     zipCode: { type: String, required: true },
     country: { type: String, required: true },
+    label: { type: String }, // Added label
+    isDefault: { type: Boolean, default: false },
   },
   { _id: false }
 );
@@ -56,7 +57,7 @@ const orderSchema = new Schema<OrderDocument>(
         "delivered",
         "cancelled",
         "refunded",
-        "completed" 
+        "completed",
       ],
       default: "pending",
       required: true,
@@ -81,6 +82,7 @@ const orderSchema = new Schema<OrderDocument>(
     isPaid: { type: Boolean, default: false },
     paidAt: { type: Date },
     deliveredAt: { type: Date },
+    appliedDiscountCode: { type: String },
   },
   { timestamps: true }
 );

@@ -11,6 +11,7 @@ import {
   FileText,
   Plus,
   MapPin,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -34,12 +35,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge"; // Import Badge for address display
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 // Define IAddress interface locally, matching backend model
 interface IAddress {
-  _id?: string; // Mongoose _id for saved addresses
+  _id?: string;
   street: string;
   apartment?: string;
   city: string;
@@ -47,7 +48,7 @@ interface IAddress {
   zipCode: string;
   country: string;
   label?: "Home" | "Work" | "Other";
-  isDefault: boolean; // Changed to be a required boolean
+  isDefault: boolean;
 }
 
 // Props for OrderSummary component
@@ -66,6 +67,7 @@ interface OrderSummaryProps {
   shipping: number;
   tax: number;
   total: number;
+  discountAmount?: number;
 }
 
 const ProgressBar = ({ currentStep }: { currentStep: number }) => {
@@ -119,6 +121,7 @@ const OrderSummary = ({
   shipping,
   tax,
   total,
+  discountAmount = 0,
 }: OrderSummaryProps) => {
   return (
     <Card className="p-6 bg-background border-0 shadow-lg sticky top-6">
@@ -158,6 +161,12 @@ const OrderSummary = ({
           <span className="text-foreground/70">Subtotal</span>
           <span>${subtotal.toFixed(2)}</span>
         </div>
+        {discountAmount > 0 && (
+          <div className="flex justify-between text-green-600 font-medium">
+            <span>Discount</span>
+            <span>-${discountAmount.toFixed(2)}</span>
+          </div>
+        )}
         <div className="flex justify-between">
           <span className="text-foreground/70">Shipping</span>
           <span>{shipping === 0 ? "Free" : `$${shipping.toFixed(2)}`}</span>
@@ -180,7 +189,7 @@ export default function CheckoutPage() {
   const searchParams = useSearchParams();
   const themedBoxId = searchParams.get("themedBoxId");
 
-  const { state: globalStoreState, clearCart } = useStore(); // UPDATED: Destructure clearCart
+  const { state: globalStoreState, clearCart } = useStore();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [shippingData, setShippingData] = useState({
@@ -188,17 +197,18 @@ export default function CheckoutPage() {
     lastName: "",
     email: "",
     address: "",
-    apartment: "", // Added apartment
+    apartment: "",
     city: "",
     state: "",
     zipCode: "",
     country: "USA",
   });
+  // Pre-fill payment data with mock details
   const [paymentData, setPaymentData] = useState({
-    cardNumber: "",
-    expiryDate: "",
-    cvv: "",
-    nameOnCard: "",
+    cardNumber: "4000 0000 0000 0000", 
+    expiryDate: "12/28",
+    cvv: "123",
+    nameOnCard: "JOHN DOE",
   });
   const [checkoutItems, setCheckoutItems] = useState<
     Array<
@@ -227,8 +237,13 @@ export default function CheckoutPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isProcessingOrder, setIsProcessingOrder] = useState(false);
+  const [orderPlacedSuccessfully, setOrderPlacedSuccessfully] = useState(false);
 
-  // Function to calculate summary based on provided items
+  const [appliedDiscountFromCart, setAppliedDiscountFromCart] = useState<{
+    code: string;
+    amount: number;
+  } | null>(null);
+
   const calculateSummary = useCallback(
     (
       items: Array<
@@ -240,21 +255,24 @@ export default function CheckoutPage() {
             price: number;
             quantity: number;
           }
-      >
+      >,
+      discountAmount: number = 0
     ) => {
       const subtotal = items.reduce(
         (sum, item) => sum + (item.price || 0) * item.quantity,
         0
       );
       const shipping = subtotal > 50 ? 0 : 9.99;
-      const tax = subtotal * 0.08; // Example tax rate
-      const total = subtotal + shipping + tax;
+
+      const subtotalAfterDiscount = subtotal - discountAmount;
+      const tax = subtotalAfterDiscount * 0.08;
+
+      const total = subtotalAfterDiscount + shipping + tax;
       return { subtotal, shipping, tax, total };
     },
     []
   );
 
-  // Effect to fetch initial data (cart or themed box, and user addresses)
   useEffect(() => {
     const fetchCheckoutData = async () => {
       setIsLoading(true);
@@ -270,16 +288,16 @@ export default function CheckoutPage() {
               quantity: number;
             }
         > = [];
+        let currentSubtotal = 0;
+        let discountApplied = 0;
 
         if (themedBoxId) {
-          // Fetch themed box details
           const res = await axios.get(`/api/themed-boxes/${themedBoxId}`);
           if (!res.data) {
             throw new Error("Themed box not found.");
           }
           const themedBox: ThemedBox = { ...res.data, id: res.data._id };
 
-          // For themed boxes, create a single item representing the box
           itemsToProcess = [
             {
               id: themedBox.id,
@@ -289,24 +307,60 @@ export default function CheckoutPage() {
               quantity: 1,
             },
           ];
+          currentSubtotal = themedBox.price;
         } else {
-          // Use cart items from global state
-          if (globalStoreState.cart.items.length === 0) {
+          if (
+            globalStoreState.cart.items.length === 0 &&
+            !orderPlacedSuccessfully
+          ) {
             setError(
               "Your cart is empty. Please add items before checking out."
             );
             setIsLoading(false);
-            return; // Exit early if cart is empty
+            return;
           }
           itemsToProcess = globalStoreState.cart.items;
+          currentSubtotal = globalStoreState.cart.items.reduce(
+            (sum, item) => sum + (item.price || 0) * item.quantity,
+            0
+          );
+
+          const storedDiscount = sessionStorage.getItem("appliedDiscount");
+          if (storedDiscount) {
+            const parsedDiscount = JSON.parse(storedDiscount);
+            try {
+              const validateRes = await axios.post("/api/discounts/validate", {
+                code: parsedDiscount.code,
+                cartSubtotal: currentSubtotal,
+              });
+              if (validateRes.data.success) {
+                discountApplied = validateRes.data.data.discountAmount;
+                setAppliedDiscountFromCart({
+                  code: parsedDiscount.code,
+                  amount: discountApplied,
+                });
+              } else {
+                sessionStorage.removeItem("appliedDiscount");
+              }
+            } catch (validationErr) {
+              console.error(
+                "Stored discount validation failed:",
+                validationErr
+              );
+              sessionStorage.removeItem("appliedDiscount");
+            }
+          }
         }
 
-        const summary = calculateSummary(itemsToProcess);
+        const summary = calculateSummary(itemsToProcess, discountApplied);
 
         setCheckoutItems(itemsToProcess);
-        setOrderSummaryCalculated(summary);
+        setOrderSummaryCalculated({
+          ...summary,
+          subtotal: currentSubtotal,
+          total: summary.total,
+        });
 
-        // Fetch user addresses
         const userRes = await axios.get("/api/users/me");
         if (userRes.data.success && userRes.data.data.addresses) {
           const addresses: IAddress[] = userRes.data.data.addresses;
@@ -319,21 +373,20 @@ export default function CheckoutPage() {
               lastName: userRes.data.data.lastName || "",
               email: userRes.data.data.email || "",
               address: defaultAddress.street,
-              apartment: defaultAddress.apartment || "", // Set apartment
+              apartment: defaultAddress.apartment || "",
               city: defaultAddress.city,
               state: defaultAddress.state,
               zipCode: defaultAddress.zipCode,
               country: defaultAddress.country,
             });
           } else if (addresses.length > 0) {
-            // If no default, select the first one
             setSelectedAddressId(addresses[0]._id as string);
             setShippingData({
               firstName: userRes.data.data.firstName || "",
               lastName: userRes.data.data.lastName || "",
               email: userRes.data.data.email || "",
               address: addresses[0].street,
-              apartment: addresses[0].apartment || "", // Set apartment
+              apartment: addresses[0].apartment || "",
               city: addresses[0].city,
               state: addresses[0].state,
               zipCode: addresses[0].zipCode,
@@ -353,7 +406,12 @@ export default function CheckoutPage() {
     };
 
     fetchCheckoutData();
-  }, [themedBoxId, globalStoreState.cart.items, calculateSummary]);
+  }, [
+    themedBoxId,
+    globalStoreState.cart.items,
+    calculateSummary,
+    orderPlacedSuccessfully,
+  ]);
 
   const handleShippingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -372,7 +430,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    // If a new address form is shown, save it first
     if (showNewAddressForm) {
       try {
         const newAddress: IAddress = {
@@ -382,17 +439,15 @@ export default function CheckoutPage() {
           state: shippingData.state,
           zipCode: shippingData.zipCode,
           country: shippingData.country,
-          label: "Home", // Default label for new address
-          isDefault: userAddresses.length === 0, // Set as default if it's the first address
+          label: "Home",
+          isDefault: userAddresses.length === 0,
         };
 
-        // Create a copy of existing addresses and unset their default flag
         const updatedAddresses = userAddresses.map((addr) => ({
           ...addr,
           isDefault: false,
         }));
 
-        // Check if the new address already exists (simple check by street and zip)
         const existingAddrIndex = updatedAddresses.findIndex(
           (addr) =>
             addr.street === newAddress.street &&
@@ -400,13 +455,11 @@ export default function CheckoutPage() {
         );
 
         if (existingAddrIndex !== -1) {
-          // If address exists, update it to be default and select it
           updatedAddresses[existingAddrIndex].isDefault = true;
           setSelectedAddressId(
             updatedAddresses[existingAddrIndex]._id as string
           );
         } else {
-          // If new address, add it and set it as default
           newAddress.isDefault = true;
           updatedAddresses.push(newAddress);
         }
@@ -420,7 +473,6 @@ export default function CheckoutPage() {
 
         if (userRes.data.success) {
           setUserAddresses(userRes.data.data.addresses);
-          // Find the address that is now default (either newly added or existing one set to default)
           const newlySelectedAddress = userRes.data.data.addresses.find(
             (addr: IAddress) => addr.isDefault
           );
@@ -451,14 +503,13 @@ export default function CheckoutPage() {
         );
       }
     } else if (selectedAddressId) {
-      // If an existing address is selected, ensure it's set as default on the backend
       const selectedAddr = userAddresses.find(
         (addr) => addr._id === selectedAddressId
       );
       if (selectedAddr) {
         const updatedAddresses = userAddresses.map((addr) => ({
           ...addr,
-          isDefault: addr._id === selectedAddressId, // Set only the selected one as default
+          isDefault: addr._id === selectedAddressId,
         }));
 
         try {
@@ -466,7 +517,7 @@ export default function CheckoutPage() {
             addresses: updatedAddresses,
           });
           if (userRes.data.success) {
-            setUserAddresses(userRes.data.data.addresses); // Update local state with fresh data
+            setUserAddresses(userRes.data.data.addresses);
             setShippingData((prev) => ({
               ...prev,
               address: selectedAddr.street,
@@ -499,15 +550,43 @@ export default function CheckoutPage() {
 
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const { cardNumber, expiryDate, cvv, nameOnCard } = paymentData;
+
+    // Basic validation for card number (16 digits, can contain spaces)
     if (
-      !paymentData.cardNumber ||
-      !paymentData.expiryDate ||
-      !paymentData.cvv ||
-      !paymentData.nameOnCard
+      !cardNumber ||
+      cardNumber.replace(/\s/g, "").length !== 16 ||
+      !/^\d{16}$/.test(cardNumber.replace(/\s/g, ""))
     ) {
-      setError("Please fill in all payment details.");
+      setError("Please enter a valid 16-digit card number.");
       return;
     }
+    // Basic validation for expiry date (MM/YY format and not in the past)
+    if (!expiryDate || !/^(0[1-9]|1[0-2])\/?([0-9]{2})$/.test(expiryDate)) {
+      setError("Please enter a valid expiry date (MM/YY).");
+      return;
+    }
+    const [month, year] = expiryDate.split("/").map(Number);
+    const currentYear = new Date().getFullYear() % 100;
+    const currentMonth = new Date().getMonth() + 1;
+
+    if (year < currentYear || (year === currentYear && month < currentMonth)) {
+      setError("Expiry date cannot be in the past.");
+      return;
+    }
+
+    // Basic validation for CVV (3 or 4 digits)
+    if (!cvv || !/^\d{3,4}$/.test(cvv)) {
+      setError("Please enter a valid 3 or 4 digit CVV.");
+      return;
+    }
+    // Basic validation for name on card
+    if (!nameOnCard || nameOnCard.trim() === "") {
+      setError("Name on card is required.");
+      return;
+    }
+
+    setError(null);
     setCurrentStep(3);
   };
 
@@ -541,6 +620,8 @@ export default function CheckoutPage() {
         totalPrice: orderSummaryCalculated.total,
         shippingPrice: orderSummaryCalculated.shipping,
         taxPrice: orderSummaryCalculated.tax,
+        paymentDetails: paymentData,
+        appliedCouponCode: appliedDiscountFromCart?.code,
       };
 
       const res = await axios.post("/api/orders", orderPayload);
@@ -549,10 +630,12 @@ export default function CheckoutPage() {
         throw new Error(res.data.message || "Failed to place order.");
       }
 
-      // Clear cart after successful order if it was a cart purchase
+      setOrderPlacedSuccessfully(true);
+
       if (!themedBoxId) {
-        clearCart(); // UPDATED: Use clearCart function
+        clearCart();
       }
+      sessionStorage.removeItem("appliedDiscount");
 
       router.push("/order/success");
     } catch (err: any) {
@@ -584,7 +667,7 @@ export default function CheckoutPage() {
     );
   }
 
-  if (error && !isProcessingOrder) {
+  if (error && !isProcessingOrder && !orderPlacedSuccessfully) {
     return (
       <CheckoutLayout>
         <div className="py-20 px-6 text-center">
@@ -645,7 +728,7 @@ export default function CheckoutPage() {
                                 setShippingData((prev) => ({
                                   ...prev,
                                   address: selectedAddr.street,
-                                  apartment: selectedAddr.apartment || "", // Ensure apartment is set
+                                  apartment: selectedAddr.apartment || "",
                                   city: selectedAddr.city,
                                   state: selectedAddr.state,
                                   zipCode: selectedAddr.zipCode,
@@ -978,6 +1061,25 @@ export default function CheckoutPage() {
                         </span>
                       </div>
 
+                      <Alert className="bg-blue-50 text-blue-800 border-blue-200">
+                        <Info className="h-4 w-4" />
+                        <AlertTitle>Mock Payment Details</AlertTitle>
+                        <AlertDescription className="text-sm">
+                          <p>
+                            **Success Card:** `4000 0000 0000 0000` (Expiry:
+                            `12/28`, CVV: `123`, Name: `JOHN DOE`)
+                          </p>
+                          <p>
+                            **Failure Card:** `5000 0000 0000 0000` (Expiry:
+                            `12/28`, CVV: `123`, Name: `JANE DOE`)
+                          </p>
+                          <p>
+                            Any other card number will result in a `pending`
+                            payment status.
+                          </p>
+                        </AlertDescription>
+                      </Alert>
+
                       <div className="flex space-x-4">
                         <Button
                           type="button"
@@ -1089,6 +1191,7 @@ export default function CheckoutPage() {
                   shipping={orderSummaryCalculated.shipping}
                   tax={orderSummaryCalculated.tax}
                   total={orderSummaryCalculated.total}
+                  discountAmount={appliedDiscountFromCart?.amount}
                 />
               </motion.div>
             </div>

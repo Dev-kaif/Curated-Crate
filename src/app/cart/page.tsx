@@ -1,24 +1,55 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState } from "react";
-import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Minus, Plus, Trash2, ShoppingBag, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageLayout } from "@/components/Layout/page-layout";
 import { useStore } from "@/contexts/store-context";
 import Link from "next/link";
+import { Input } from "@/components/ui/input";
+import axios from "axios";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function CartPage() {
   const { state, updateQuantity, removeFromCart } = useStore();
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
+
+  // Coupon states
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    code: string;
+    amount: number;
+  } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+
+  // Effect to load applied coupon from sessionStorage on component mount
+  useEffect(() => {
+    const storedDiscount = sessionStorage.getItem("appliedDiscount");
+    if (storedDiscount) {
+      try {
+        const parsedDiscount = JSON.parse(storedDiscount);
+        handleApplyCoupon(parsedDiscount.code);
+      } catch (e) {
+        console.error("Failed to parse stored discount:", e);
+        sessionStorage.removeItem("appliedDiscount");
+      }
+    }
+  }, [state.cart.items]);
 
   const subtotal = state.cart.items.reduce(
     (sum, cartItem) => sum + (cartItem.price || 0) * cartItem.quantity,
     0
   );
   const shipping = subtotal > 50 ? 0 : 9.99;
-  const total = subtotal + shipping;
+
+  const discountAmount = appliedDiscount ? appliedDiscount.amount : 0;
+  const subtotalAfterDiscount = subtotal - discountAmount;
+  const tax = subtotalAfterDiscount * 0.08;
+
+  const total = subtotalAfterDiscount + shipping + tax;
 
   const handleUpdateQuantity = async (
     cartItemId: string,
@@ -27,12 +58,69 @@ export default function CartPage() {
     setLoadingItemId(cartItemId);
     await updateQuantity(cartItemId, newQuantity);
     setLoadingItemId(null);
+    if (appliedDiscount) {
+      handleApplyCoupon(appliedDiscount.code);
+    }
   };
 
   const handleRemoveFromCart = async (cartItemId: string) => {
     setLoadingItemId(cartItemId);
     await removeFromCart(cartItemId);
     setLoadingItemId(null);
+    if (appliedDiscount) {
+      handleApplyCoupon(appliedDiscount.code);
+    }
+  };
+
+  const handleApplyCoupon = async (codeToApply: string = couponCode) => {
+    if (!codeToApply) {
+      setCouponError("Please enter a coupon code.");
+      setAppliedDiscount(null);
+      sessionStorage.removeItem("appliedDiscount");
+      return;
+    }
+
+    setIsApplyingCoupon(true);
+    setCouponError(null);
+    setAppliedDiscount(null);
+
+    try {
+      const response = await axios.post("/api/discounts/validate", {
+        code: codeToApply,
+        cartSubtotal: subtotal,
+      });
+
+      if (response.data.success) {
+        const newAppliedDiscount = {
+          code: response.data.data.code,
+          amount: response.data.data.discountAmount,
+        };
+        setAppliedDiscount(newAppliedDiscount);
+        setCouponCode(newAppliedDiscount.code);
+        sessionStorage.setItem(
+          "appliedDiscount",
+          JSON.stringify(newAppliedDiscount)
+        );
+      } else {
+        setCouponError(response.data.message || "Invalid coupon code.");
+        sessionStorage.removeItem("appliedDiscount");
+      }
+    } catch (err: any) {
+      console.error("Error applying coupon:", err);
+      setCouponError(
+        err.response?.data?.message || err.message || "Failed to apply coupon."
+      );
+      sessionStorage.removeItem("appliedDiscount");
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedDiscount(null);
+    setCouponCode("");
+    setCouponError(null);
+    sessionStorage.removeItem("appliedDiscount");
   };
 
   if (state.cart.items.length === 0) {
@@ -56,7 +144,7 @@ export default function CartPage() {
                 Start building your perfect gift box.
               </p>
               <Link href="/shop">
-                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 rounded-full">
+                <Button className="bg-primary mt-5 hover:bg-primary/90 text-primary-foreground px-8 py-3 rounded-full">
                   Start Shopping
                 </Button>
               </Link>
@@ -176,6 +264,78 @@ export default function CartPage() {
                     <span className="text-foreground/70">Subtotal</span>
                     <span className="font-medium">${subtotal.toFixed(2)}</span>
                   </div>
+
+                  {/* Coupon Input and Apply Button */}
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        type="text"
+                        placeholder="Enter coupon code"
+                        value={couponCode}
+                        onChange={(e) => {
+                          setCouponCode(e.target.value);
+                          setCouponError(null); // Clear error on change
+                        }}
+                        className="flex-grow rounded-full border-foreground/20 focus:border-primary"
+                        disabled={isApplyingCoupon || !!appliedDiscount}
+                      />
+                      {!appliedDiscount ? (
+                        <Button
+                          onClick={() => handleApplyCoupon()}
+                          disabled={isApplyingCoupon || !couponCode.trim()}
+                          className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-4"
+                        >
+                          {isApplyingCoupon ? (
+                            "Applying..."
+                          ) : (
+                            <Tag className="w-4 h-4" />
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={handleRemoveCoupon}
+                          variant="outline"
+                          className="rounded-full px-4"
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                    {couponError && (
+                      <Alert
+                        variant="destructive"
+                        className="py-2 px-3 text-sm"
+                      >
+                        <AlertTitle className="text-sm">Error</AlertTitle>
+                        <AlertDescription className="text-xs">
+                          {couponError}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {appliedDiscount && (
+                      <Alert
+                        variant="default"
+                        className="py-2 px-3 text-sm border-green-500 text-green-700"
+                      >
+                        <AlertTitle className="text-sm">
+                          Discount Applied!
+                        </AlertTitle>
+                        <AlertDescription className="text-xs">
+                          '{appliedDiscount.code}' saved you $
+                          {appliedDiscount.amount.toFixed(2)}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+
+                  {/* Discount Row */}
+                  {appliedDiscount && (
+                    <div className="flex justify-between items-center text-green-600 font-medium">
+                      <span>Discount ({appliedDiscount.code})</span>
+                      <span>-${appliedDiscount.amount.toFixed(2)}</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between items-center">
                     <span className="text-foreground/70">Shipping</span>
                     <span className="font-medium">
@@ -187,6 +347,11 @@ export default function CartPage() {
                       Add ${(50 - subtotal).toFixed(2)} more for free shipping
                     </p>
                   )}
+                  {/* Tax Row */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-foreground/70">Tax</span>
+                    <span className="font-medium">${tax.toFixed(2)}</span>
+                  </div>
                   <div className="border-t border-foreground/20 pt-4">
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-lg">Total</span>
@@ -196,7 +361,7 @@ export default function CartPage() {
                     </div>
                   </div>
                 </div>
-                <div className="space-y-3">
+                <div className="flex flex-col gap-5">
                   <Link href="/checkout">
                     <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-lg font-medium rounded-full">
                       Proceed to Checkout
