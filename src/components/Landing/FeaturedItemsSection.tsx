@@ -2,16 +2,16 @@
 
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Product } from "@/contexts/store-context"; // Assuming your Product type is here
-import axios from "axios"; // Import axios
+import { Product } from "@/contexts/store-context";
+import axios from "axios";
+import { InfiniteMovingProducts } from "@/components/ui/Marque";
 
 export const FeaturedItemsSection = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null); // Added error state
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchFeaturedProducts = async () => {
@@ -50,10 +50,8 @@ export const FeaturedItemsSection = () => {
     };
 
     fetchFeaturedProducts();
-  }, []); // Empty dependency array means this runs once on mount
+  }, []);
 
-  // Duplicate the products array to create a seamless loop for the marquee
-  // Only duplicate if products are loaded to avoid issues with empty array
   const marqueeProducts = products.length > 0 ? [...products, ...products] : [];
 
   if (error) {
@@ -117,34 +115,14 @@ export const FeaturedItemsSection = () => {
                 },
               }}
             >
-              {marqueeProducts.map((product, index) => (
-                // FIX: Wrap the entire Card with Link for full clickability
-                <div key={index} className="flex-shrink-0 w-64 mx-3">
-                  <Link href={`/shop/details/${product.id}`} passHref>
-                    {" "}
-                    {/* Use passHref */}
-                    <Card className="overflow-hidden bg-background border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 cursor-pointer">
-                      {" "}
-                      {/* Added cursor-pointer */}
-                      <div className="aspect-square bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                        <img
-                          src={product.imageUrl || "/placeholder.svg"} // Use product.imageUrl
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <CardContent className="p-6 text-center">
-                        <h3 className="font-serif font-bold text-lg text-foreground mb-2 truncate">
-                          {product.name}
-                        </h3>
-                        <p className="text-primary font-bold text-xl">
-                          ${product.price.toFixed(2)}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                </div>
-              ))}
+              <section className="my-12">
+                <InfiniteMovingProducts
+                  products={marqueeProducts}
+                  direction="left"
+                  speed="slow"
+                  pauseOnHover={true}
+                />
+              </section>
             </motion.div>
           )}
         </div>
