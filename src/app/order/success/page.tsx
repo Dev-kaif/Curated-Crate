@@ -54,7 +54,7 @@ export default function OrderSuccessPage() {
                 </div>
               </Card>
 
-              <div className="space-y-4">
+              <div className="flex flex-col gap-5">
                 <Link href="/shop">
                   <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-lg rounded-full">
                     Continue Shopping

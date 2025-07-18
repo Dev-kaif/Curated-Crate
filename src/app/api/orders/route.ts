@@ -7,11 +7,11 @@ import Order from "@/backend/models/Order";
 import Product from "@/backend/models/Product";
 import ThemedBox from "@/backend/models/ThemedBox";
 import Cart from "@/backend/models/Cart";
-import { IOrderItem, IAddress, PaymentStatus } from "@/types"; // Import PaymentStatus
-import mongoose from "mongoose"; // Import mongoose for ObjectId
+import Discount from "@/backend/models/Discount"; // Import Discount model
+import { IOrderItem, IAddress, PaymentStatus } from "@/types";
+import mongoose from "mongoose";
 
 export async function GET(req: NextRequest) {
-  // A user must be authenticated to see their orders
   const authResult = await authenticateAndAuthorize(req);
   if (authResult.response) {
     return authResult.response;
@@ -20,19 +20,14 @@ export async function GET(req: NextRequest) {
 
   await dbConnect();
   try {
-    // Populate order items' product details for display
-    const orders = await Order.find({ userId: user.id }) // Changed from 'user' to 'userId' for consistency with Order model
-      .populate("items.productId") // Changed from 'orderItems.product' to 'items.productId'
+    const orders = await Order.find({ userId: user.id })
+      .populate("items.productId")
       .sort({ createdAt: -1 });
-    return NextResponse.json({ success: true, data: orders }); // Standardize response
+    return NextResponse.json({ success: true, data: orders });
   } catch (error: any) {
     console.error("Error fetching orders:", error);
     return NextResponse.json(
-      {
-        success: false,
-        message: "Error fetching orders",
-        error: error.message,
-      },
+      { success: false, message: "Error fetching orders", error: error.message },
       { status: 500 }
     );
   }
@@ -40,7 +35,6 @@ export async function GET(req: NextRequest) {
 
 // Handler for creating a new order
 export async function POST(req: NextRequest) {
-  // A user must be authenticated to create an order
   const authResult = await authenticateAndAuthorize(req);
   if (authResult.response) {
     return authResult.response;
@@ -57,11 +51,10 @@ export async function POST(req: NextRequest) {
       totalPrice,
       shippingPrice,
       taxPrice,
-      // NEW: paymentDetails from frontend (e.g., cardNumber for mock logic)
       paymentDetails,
+      appliedCouponCode,
     } = await req.json();
 
-    // Validate essential fields
     if (
       !shippingAddress ||
       !paymentMethod ||
@@ -88,7 +81,6 @@ export async function POST(req: NextRequest) {
     let productIdsToClearFromCart: string[] = [];
     let isThemedBoxDirectPurchase = false;
 
-    // --- Stock Check and Order Item Preparation ---
     for (const item of cartItems) {
       if (item.type === "themedBox" && item.themedBoxId) {
         isThemedBoxDirectPurchase = true;
@@ -189,9 +181,7 @@ export async function POST(req: NextRequest) {
           price: product.price,
           quantity: item.quantity,
         });
-        await Product.findByIdAndUpdate(product._id, {
-          $inc: { stock: -item.quantity },
-        });
+        await Product.findByIdAndUpdate(product._id, { $inc: { stock: -item.quantity } });
         productIdsToClearFromCart.push(item.productId);
       } else {
         console.error("Invalid item structure in cartItems payload:", item);
@@ -212,77 +202,59 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // --- Mock Payment Logic ---
     let orderPaymentStatus: PaymentStatus = "pending";
     let isOrderPaid = false;
     let paidAt: Date | undefined;
-    let paymentResult: any = {}; // To store mock payment gateway response
+    let paymentResult: any = {};
 
     if (paymentMethod === "card") {
-      // Simulate payment gateway interaction
-      // In a real app, you'd call a Stripe/PayPal API here
-      if (
-        totalPrice > 0 &&
-        paymentDetails?.cardNumber &&
-        paymentDetails.cardNumber.startsWith("4")
-      ) {
-        // Example: Card starting with 4 is successful
-        orderPaymentStatus = "paid";
-        isOrderPaid = true;
-        paidAt = new Date();
-        paymentResult = {
-          id: `mock_txn_${Date.now()}`,
-          status: "COMPLETED",
-          update_time: new Date().toISOString(),
-          email_address: user.email,
-        };
-      } else if (
-        totalPrice > 0 &&
-        paymentDetails?.cardNumber &&
-        paymentDetails.cardNumber.startsWith("5")
-      ) {
-        // Example: Card starting with 5 fails
-        orderPaymentStatus = "failed";
-        isOrderPaid = false;
-        paymentResult = {
-          id: `mock_txn_failed_${Date.now()}`,
-          status: "FAILED",
-          error_code: "MOCK_DECLINED",
-          error_message: "Simulated card decline.",
-        };
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Payment failed. Please try again with a different card.",
-          },
-          { status: 402 } // Payment Required
-        );
-      } else if (totalPrice === 0) {
-        orderPaymentStatus = "paid"; // Free orders are "paid"
-        isOrderPaid = true;
-        paidAt = new Date();
-        paymentResult = {
-          id: `mock_txn_free_${Date.now()}`,
-          status: "FREE_ORDER",
-          message: "Order with zero total price.",
-        };
-      } else {
-        // Default to pending if no specific mock logic matches
+        if (totalPrice > 0 && paymentDetails?.cardNumber && paymentDetails.cardNumber.startsWith("4")) {
+            orderPaymentStatus = "paid";
+            isOrderPaid = true;
+            paidAt = new Date();
+            paymentResult = {
+                id: `mock_txn_${Date.now()}`,
+                status: "COMPLETED",
+                update_time: new Date().toISOString(),
+                email_address: user.email,
+            };
+        } else if (totalPrice > 0 && paymentDetails?.cardNumber && paymentDetails.cardNumber.startsWith("5")) {
+            orderPaymentStatus = "failed";
+            isOrderPaid = false;
+            paymentResult = {
+                id: `mock_txn_failed_${Date.now()}`,
+                status: "FAILED",
+                error_code: "MOCK_DECLINED",
+                error_message: "Simulated card decline.",
+            };
+            return NextResponse.json(
+                { success: false, message: "Payment failed. Please try again with a different card." },
+                { status: 402 }
+            );
+        } else if (totalPrice === 0) {
+             orderPaymentStatus = "paid";
+             isOrderPaid = true;
+             paidAt = new Date();
+             paymentResult = {
+                id: `mock_txn_free_${Date.now()}`,
+                status: "FREE_ORDER",
+                message: "Order with zero total price."
+            };
+        }
+        else {
+            orderPaymentStatus = "pending";
+            isOrderPaid = false;
+            paymentResult = {
+                id: `mock_txn_pending_${Date.now()}`,
+                status: "PENDING",
+                message: "Payment initiated, awaiting confirmation."
+            };
+        }
+    } else {
         orderPaymentStatus = "pending";
         isOrderPaid = false;
-        paymentResult = {
-          id: `mock_txn_pending_${Date.now()}`,
-          status: "PENDING",
-          message: "Payment initiated, awaiting confirmation.",
-        };
-      }
-    } else {
-      // For other payment methods like 'cash_on_delivery', it might remain pending
-      orderPaymentStatus = "pending";
-      isOrderPaid = false;
     }
 
-    // Create the new order document
     const order = new Order({
       userId: user.id,
       items: finalOrderItems,
@@ -291,16 +263,25 @@ export async function POST(req: NextRequest) {
       totalPrice,
       shippingPrice,
       taxPrice,
-      orderStatus: "pending", // Initial order status is pending until payment is confirmed
-      paymentStatus: orderPaymentStatus, // Set based on mock payment result
-      isPaid: isOrderPaid, // Set based on mock payment result
-      paidAt: paidAt, // Set if paid
-      paymentResult: paymentResult, // Store mock payment result
+      orderStatus: "pending",
+      paymentStatus: orderPaymentStatus,
+      isPaid: isOrderPaid,
+      paidAt: paidAt,
+      paymentResult: paymentResult,
+      appliedDiscountCode: appliedCouponCode, 
     });
 
     const createdOrder = await order.save();
 
-    // Clear the user's cart only if the order was NOT a direct themed box purchase
+    if (appliedCouponCode && isOrderPaid) {
+        const discount = await Discount.findOne({ code: appliedCouponCode.toUpperCase() });
+        if (discount) {
+            discount.uses = (discount.uses || 0) + 1;
+            await discount.save();
+            console.log(`Discount code ${appliedCouponCode} usesCount incremented.`);
+        }
+    }
+
     if (!isThemedBoxDirectPurchase && productIdsToClearFromCart.length > 0) {
       const userCart = await Cart.findOne({ user: user.id });
       if (userCart) {

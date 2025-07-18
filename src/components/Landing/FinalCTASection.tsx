@@ -30,7 +30,7 @@ export const FinalCTASection = () => {
           <Link href="/shop">
             <Button
               size="lg"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-12 py-4 text-xl font-medium rounded-full animate-breathe"
+              className="bg-primary mt-10 hover:bg-primary/90 text-primary-foreground px-12 py-4 text-xl font-medium rounded-full animate-breathe"
             >
               Build Your Custom Crate
               <ArrowRight className="ml-3 w-6 h-6" />
