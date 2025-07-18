@@ -31,10 +31,10 @@ interface Review {
 }
 
 const ReviewForm = ({
-  productId, 
+  productId,
   onReviewSubmitted,
 }: {
-  productId: string; 
+  productId: string;
   onReviewSubmitted: (newReview: Review) => void;
 }) => {
   const [rating, setRating] = useState(0);
@@ -164,7 +164,7 @@ export default function ProductDetailPage() {
       return;
     }
     if (!product || !product._id) return;
-    setIsAddingToCart(true); 
+    setIsAddingToCart(true);
     try {
       await addToCart(product._id, quantity);
     } catch (err) {
@@ -204,7 +204,7 @@ export default function ProductDetailPage() {
     } catch (err) {
       console.error("Error toggling wishlist:", err);
     } finally {
-      setIsAddingToWishlist(false); 
+      setIsAddingToWishlist(false);
     }
   };
 
@@ -338,7 +338,7 @@ export default function ProductDetailPage() {
                     size="sm"
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
                     className="p-2 rounded-full"
-                    disabled={isAddingToCart} 
+                    disabled={isAddingToCart}
                   >
                     <Minus className="w-4 h-4" />
                   </Button>
@@ -348,7 +348,7 @@ export default function ProductDetailPage() {
                     size="sm"
                     onClick={() => setQuantity(quantity + 1)}
                     className="p-2 rounded-full"
-                    disabled={isAddingToCart} 
+                    disabled={isAddingToCart}
                   >
                     <Plus className="w-4 h-4" />
                   </Button>
@@ -393,7 +393,7 @@ export default function ProductDetailPage() {
                     variant="outline"
                     size="lg"
                     className="w-full py-4 text-lg font-medium rounded-full bg-transparent"
-                    disabled={isInCart || isAddingToWishlist} 
+                    disabled={isInCart || isAddingToWishlist}
                   >
                     <Heart
                       className={`w-5 h-5 mr-2 ${
@@ -462,13 +462,37 @@ export default function ProductDetailPage() {
                   </div>
                   <div className="grid gap-6">
                     {reviews.length > 0 ? (
-                      reviews.map((review) => (
-                        <div
+                      reviews.map((review,index) => (
+                        <motion.div
                           key={review._id}
-                          className="border-b border-foreground/10 pb-4 last:border-b-0"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.5, delay: index * 0.1 }}
                         >
-                          {/* Review item JSX */}
-                        </div>
+                          <Card className="p-6 bg-background border-0 shadow-lg">
+                            <div className="flex items-start justify-between mb-4">
+                              <div>
+                                <div className="flex items-center space-x-1 mb-2">
+                                  {[...Array(review.rating)].map((_, i) => (
+                                    <Star
+                                      key={i}
+                                      className="w-4 h-4 fill-primary text-primary"
+                                    />
+                                  ))}
+                                </div>
+                                <p className="font-medium text-foreground">
+                                  {review.userName}
+                                </p>
+                                <p className="text-sm text-foreground/60">
+                                  {review.createdAt}
+                                </p>
+                              </div>
+                            </div>
+                            <p className="text-foreground/80 leading-relaxed">
+                              {review.comment}
+                            </p>
+                          </Card>
+                        </motion.div>
                       ))
                     ) : (
                       <p className="text-foreground/70 text-center py-8">
@@ -506,7 +530,7 @@ export default function ProductDetailPage() {
                   </h3>
                   {product && (
                     <ReviewForm
-                      productId={product.productId as string}
+                      productId={product._id as string}
                       onReviewSubmitted={handleNewReview}
                     />
                   )}
