@@ -55,7 +55,7 @@ export interface AuthenticatedUser {
 export interface IAddress {
   _id?: Types.ObjectId | string;
   street: string;
-  apartment?: string; 
+  apartment?: string;
   city: string;
   state: string;
   zipCode: string;
@@ -191,52 +191,6 @@ export interface IPet {
   };
   createdAt?: string;
   updatedAt?: string;
-}
-
-export interface ITeamMember {
-  _id: string;
-  name: string;
-  title: string;
-  description: string;
-  experience: string;
-  contact: {
-    phone: string;
-    email: string;
-    address: string;
-    social: {
-      facebook?: string;
-      twitter?: string;
-      instagram?: string;
-      youtube?: string;
-    };
-  };
-  imageUrl: string;
-  showOnHome?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface IGalleryImage {
-  _id?: string | Types.ObjectId;
-  imageUrl: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface IReservation {
-  _id: string | Types.ObjectId;
-  fullName: string;
-  email: string;
-  phone: string;
-  date: string;
-  species: string;
-  breed: string;
-  reason: string;
-  specialNote?: string;
-  status: "pending" | "confirmed" | "cancelled" | "completed";
-  adminNotes?: string;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 export interface IPopulatedCartItem {
