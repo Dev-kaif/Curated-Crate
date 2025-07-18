@@ -42,7 +42,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Edit, Trash2, Copy, Calendar, AlertCircle } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Copy,
+  Calendar,
+  AlertCircle,
+  Check,
+} from "lucide-react"; // Added Check icon
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import axios from "axios";
@@ -79,6 +87,7 @@ export default function MarketingManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [copiedDiscountId, setCopiedDiscountId] = useState<string | null>(null); // State for copy animation
   const [newDiscount, setNewDiscount] = useState({
     code: "",
     type: "percentage",
@@ -157,8 +166,12 @@ export default function MarketingManagement() {
     }
   };
 
-  const copyDiscountCode = (code: string) => {
+  const copyDiscountCode = (code: string, discountId: string) => {
     navigator.clipboard.writeText(code);
+    setCopiedDiscountId(discountId);
+    setTimeout(() => {
+      setCopiedDiscountId(null);
+    }, 2000); // Revert back to copy icon after 2 seconds
   };
 
   return (
@@ -367,9 +380,23 @@ export default function MarketingManagement() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => copyDiscountCode(discount.code)}
+                              onClick={() =>
+                                copyDiscountCode(
+                                  discount.code,
+                                  discount._id as string
+                                )
+                              }
+                              className={
+                                copiedDiscountId === discount._id
+                                  ? "text-green-600 hover:text-green-700"
+                                  : ""
+                              }
                             >
-                              <Copy className="h-3 w-3" />
+                              {copiedDiscountId === discount._id ? (
+                                <Check className="h-3 w-3" />
+                              ) : (
+                                <Copy className="h-3 w-3" />
+                              )}
                             </Button>
                           </div>
                           <div className="text-sm text-gray-500 mt-1">
