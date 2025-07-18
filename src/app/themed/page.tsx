@@ -1,4 +1,3 @@
-// src/app/themed/page.tsx
 "use client";
 
 import { motion } from "framer-motion";
@@ -14,9 +13,9 @@ import {
   type ThemedBox,
   type Product,
 } from "@/contexts/store-context";
-import { useRouter } from "next/navigation"; // Import useRouter
+import { useRouter } from "next/navigation"; 
+import { useSession } from "next-auth/react";
 
-// A helper to map a name to a Lucide icon component
 const iconMap: { [key: string]: React.ElementType } = {
   Birthday: Gift,
   Relaxation: Heart,
@@ -29,8 +28,8 @@ const iconMap: { [key: string]: React.ElementType } = {
 
 // The card component for a single themed box
 const ThemedBoxCard = ({ box }: { box: ThemedBox }) => {
-  // No longer directly using addToCart from useStore here
   const router = useRouter(); // Initialize useRouter
+  const { data: session } = useSession();
   const [isBuying, setIsBuying] = useState(false); // Changed from isAdding to isBuying
 
   // Find a matching icon, or use a default one
@@ -41,6 +40,10 @@ const ThemedBoxCard = ({ box }: { box: ThemedBox }) => {
     : iconMap.Default;
 
   const handleBuyNow = async () => {
+    if (!session) {
+      router.push("/login");
+      return;
+    }
     // Renamed function
     setIsBuying(true); // Set loading state
     try {
@@ -122,10 +125,13 @@ const ThemedBoxCard = ({ box }: { box: ThemedBox }) => {
                 variant="outline"
                 className="w-full rounded-full bg-transparent text-sm"
                 onClick={handleBuyNow} // Call new function
-                disabled={isBuying} // Use new loading state
+                disabled={isBuying && !!session} // Use new loading state
               >
-                {isBuying ? "Proceeding..." : "Buy Now"}{" "}
-                {/* Change button text */}
+                {!session
+                  ? "Sign in to Buy"
+                  : isBuying
+                    ? "Proceeding..."
+                    : "Buy Now"}
               </Button>
             </div>
           </div>

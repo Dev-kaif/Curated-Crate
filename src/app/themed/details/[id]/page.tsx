@@ -188,6 +188,10 @@ export default function ThemedBoxDetailPage() {
   };
 
   const handleBuyNow = async () => {
+    if (!session) {
+      router.push("/login");
+      return;
+    }
     if (!themedBox) return;
     setIsBuying(true);
     try {
@@ -364,10 +368,13 @@ export default function ThemedBoxDetailPage() {
                   onClick={handleBuyNow}
                   size="lg"
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 text-lg font-medium rounded-full"
-                  disabled={isBuying}
+                  disabled={isBuying && !!session}
                 >
-                  {isBuying ? "Proceeding..." : "Buy Now"} - $
-                  {themedBox.price.toFixed(2)}
+                  {!session
+                    ? "Sign in to Buy"
+                    : isBuying
+                      ? "Proceeding..."
+                      : `Buy Now - $${themedBox.price.toFixed(2)}`}
                 </Button>
               </div>
             </motion.div>

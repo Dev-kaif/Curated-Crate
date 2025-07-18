@@ -19,18 +19,25 @@ import { useStore, type Product } from "@/contexts/store-context";
 import Link from "next/link";
 import axios from "axios";
 import { useRouter } from "next/navigation"; // Import useRouter
+import { useSession } from "next-auth/react";
 
 const ProductCard = ({ product }: { product: Product }) => {
   const { addToCart, state } = useStore(); // Access state to check cart items
   const router = useRouter(); // Initialize useRouter
+  const { data: session } = useSession();
   const [isAdding, setIsAdding] = useState(false);
 
   // Check if the product is already in the cart
-  const isInCart = state.cart.items.some(
-    (item) => item.productId === product.id
-  );
+  const isInCart = session
+    ? state.cart.items.some((item) => item.productId === product.id)
+    : false;
 
   const handleButtonClick = async () => {
+    if (!session) {
+      router.push("/login");
+      return;
+    }
+
     if (isInCart) {
       router.push("/cart"); // Redirect to cart if already in cart
     } else {
@@ -79,9 +86,11 @@ const ProductCard = ({ product }: { product: Product }) => {
               onClick={handleButtonClick} // Use the new handler
               size="sm"
               className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-4"
-              disabled={isAdding} // Disable only when adding
+              disabled={isAdding && !!session} // Disable only when adding and logged in
             >
-              {isAdding ? (
+              {!session ? (
+                "Sign in to Add"
+              ) : isAdding ? (
                 "Adding..."
               ) : isInCart ? (
                 <>

@@ -10,17 +10,25 @@ import { useStore, type Product } from "@/contexts/store-context";
 import Link from "next/link";
 import axios from "axios"; // Import axios
 import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton for loading state
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 export default function WishlistPage() {
   const { state, addToCart, removeFromWishlist, dispatch } = useStore(); // Destructure dispatch
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
   const [isLoadingWishlist, setIsLoadingWishlist] = useState(true); // New loading state for initial fetch
 
-  console.log(state.wishlist);
-
-  // Fetch wishlist on component mount
+  // Fetch wishlist on component mount if the user is authenticated
   useEffect(() => {
     const fetchWishlist = async () => {
+      if (status !== "authenticated") {
+        dispatch({ type: "SET_WISHLIST", payload: [] });
+        setIsLoadingWishlist(false);
+        return;
+      }
+
       setIsLoadingWishlist(true);
       try {
         const response = await axios.get("/api/wishlist");
@@ -41,7 +49,7 @@ export default function WishlistPage() {
       }
     };
     fetchWishlist();
-  }, [dispatch]); // Depend on dispatch to ensure it's stable
+  }, [status, dispatch]); // Depend on session status and dispatch
 
   const moveToCart = async (product: Product) => {
     setLoadingItemId(product.productId as string);
@@ -54,7 +62,11 @@ export default function WishlistPage() {
     }
   };
 
-  if (isLoadingWishlist) {
+  // Show skeleton loader while session status is loading or while fetching wishlist for an authenticated user
+  if (
+    status === "loading" ||
+    (status === "authenticated" && isLoadingWishlist)
+  ) {
     return (
       <PageLayout>
         <div className="py-20 px-6">
@@ -72,8 +84,7 @@ export default function WishlistPage() {
                 Loading Wishlist...
               </h1>
               <Skeleton className="h-6 w-48 mx-auto mt-4" />
-              <div className="grid grid-cols-2 gap-4 mt-8">
-                <Skeleton className="h-12 rounded-full" />
+              <div className="grid grid-cols-1 gap-4 mt-8">
                 <Skeleton className="h-12 rounded-full" />
               </div>
             </motion.div>
@@ -83,6 +94,42 @@ export default function WishlistPage() {
     );
   }
 
+  // Show login prompt if the user is unauthenticated
+  if (status === "unauthenticated") {
+    return (
+      <PageLayout>
+        <div className="py-20 px-6">
+          <div className="container mx-auto text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="max-w-md mx-auto space-y-6"
+            >
+              <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                <Heart className="w-12 h-12 text-primary" />
+              </div>
+              <h1 className="text-3xl font-serif font-bold text-foreground">
+                Please Sign In
+              </h1>
+              <p className="text-foreground/70 text-lg">
+                Login to view your wishlist and save your favorite items for
+                later.
+              </p>
+              <Button
+                onClick={() => router.push("/login")}
+                className="bg-primary mt-5 hover:bg-primary/90 text-primary-foreground px-8 py-3 rounded-full"
+              >
+                Login / Sign Up
+              </Button>
+            </motion.div>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  // Show empty wishlist message for authenticated users with no items
   if (state.wishlist.length === 0) {
     return (
       <PageLayout>
@@ -116,6 +163,7 @@ export default function WishlistPage() {
     );
   }
 
+  // Render wishlist for authenticated users with items
   return (
     <PageLayout>
       <div className="py-12 px-6">

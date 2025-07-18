@@ -11,10 +11,14 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import axios from "axios";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 export default function CartPage() {
   const { state, updateQuantity, removeFromCart } = useStore();
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
+  const { data: session } = useSession();
+  const router = useRouter();
 
   // Coupon states
   const [couponCode, setCouponCode] = useState("");
@@ -362,11 +366,20 @@ export default function CartPage() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-5">
-                  <Link href="/checkout">
-                    <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-lg font-medium rounded-full">
-                      Proceed to Checkout
+                  {session ? (
+                    <Link href="/checkout">
+                      <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-lg font-medium rounded-full">
+                        Proceed to Checkout
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button
+                      onClick={() => router.push("/login")}
+                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-lg font-medium rounded-full"
+                    >
+                      Login / Sign Up to Continue
                     </Button>
-                  </Link>
+                  )}
                   <Link href="/shop">
                     <Button
                       variant="outline"

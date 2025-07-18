@@ -164,6 +164,10 @@ export default function ProductDetailPage() {
   };
 
   const handleAddToCart = async () => {
+    if (!session) {
+      router.push("/login");
+      return;
+    }
     if (!product || !product._id) return;
     setIsAddingToCart(true); // Set loading state for Add to Cart
     try {
@@ -176,6 +180,10 @@ export default function ProductDetailPage() {
   };
 
   const handleWishlistToggle = async () => {
+    if (!session) {
+      router.push("/login");
+      return;
+    }
     if (!product || !product._id) return;
 
     // Check if product is already in cart, if so, prevent adding to wishlist
@@ -252,10 +260,12 @@ export default function ProductDetailPage() {
   }
 
   const images = product.images || [];
-  const isInWishlist = state.wishlist.some((item) => item.id === product.id);
-  const isInCart = state.cart.items.some(
-    (item) => item.productId === product._id
-  );
+  const isInWishlist = session
+    ? state.wishlist.some((item) => item.id === product.id)
+    : false;
+  const isInCart = session
+    ? state.cart.items.some((item) => item.productId === product._id)
+    : false;
 
   return (
     <PageLayout>
@@ -352,7 +362,15 @@ export default function ProductDetailPage() {
                 </div>
               </div>
               <div className="space-y-4">
-                {isInCart ? (
+                {!session ? (
+                  <Button
+                    onClick={() => router.push("/login")}
+                    size="lg"
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 text-lg font-medium rounded-full"
+                  >
+                    Sign in to Add to Box
+                  </Button>
+                ) : isInCart ? (
                   <Button
                     onClick={() => router.push("/cart")}
                     size="lg"
@@ -370,28 +388,34 @@ export default function ProductDetailPage() {
                   >
                     {isAddingToCart
                       ? "Adding..."
-                      : `Add to Box - $${(product.price * quantity).toFixed(2)}`}
+                      : `Add to Box - $${(product.price * quantity).toFixed(
+                          2
+                        )}`}
                   </Button>
                 )}
 
-                <Button
-                  onClick={handleWishlistToggle}
-                  variant="outline"
-                  size="lg"
-                  className="w-full py-4 text-lg font-medium rounded-full bg-transparent"
-                  disabled={isInCart || isAddingToWishlist} // Disable if in cart or adding to wishlist
-                >
-                  <Heart
-                    className={`w-5 h-5 mr-2 ${isInWishlist ? "fill-primary text-primary" : ""}`}
-                  />
-                  {isAddingToWishlist
-                    ? "Updating Wishlist..."
-                    : isInCart
-                      ? "Already in Cart"
-                      : isInWishlist
-                        ? "Remove from Wishlist"
-                        : "Add to Wishlist"}
-                </Button>
+                {session && (
+                  <Button
+                    onClick={handleWishlistToggle}
+                    variant="outline"
+                    size="lg"
+                    className="w-full py-4 text-lg font-medium rounded-full bg-transparent"
+                    disabled={isInCart || isAddingToWishlist} // Disable if in cart or adding to wishlist
+                  >
+                    <Heart
+                      className={`w-5 h-5 mr-2 ${
+                        isInWishlist ? "fill-primary text-primary" : ""
+                      }`}
+                    />
+                    {isAddingToWishlist
+                      ? "Updating Wishlist..."
+                      : isInCart
+                        ? "Already in Cart"
+                        : isInWishlist
+                          ? "Remove from Wishlist"
+                          : "Add to Wishlist"}
+                  </Button>
+                )}
               </div>
             </motion.div>
           </div>
