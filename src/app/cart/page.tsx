@@ -20,7 +20,6 @@ export default function CartPage() {
   const { data: session } = useSession();
   const router = useRouter();
 
-  // Coupon states
   const [couponCode, setCouponCode] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState<{
     code: string;
@@ -29,7 +28,6 @@ export default function CartPage() {
   const [couponError, setCouponError] = useState<string | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
-  // Effect to load applied coupon from sessionStorage on component mount
   useEffect(() => {
     const storedDiscount = sessionStorage.getItem("appliedDiscount");
     if (storedDiscount) {
@@ -278,7 +276,7 @@ export default function CartPage() {
                         value={couponCode}
                         onChange={(e) => {
                           setCouponCode(e.target.value);
-                          setCouponError(null); // Clear error on change
+                          setCouponError(null); 
                         }}
                         className="flex-grow rounded-full border-foreground/20 focus:border-primary"
                         disabled={isApplyingCoupon || !!appliedDiscount}

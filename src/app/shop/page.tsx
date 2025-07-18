@@ -18,12 +18,12 @@ import { PageLayout } from "@/components/Layout/page-layout";
 import { useStore, type Product } from "@/contexts/store-context";
 import Link from "next/link";
 import axios from "axios";
-import { useRouter } from "next/navigation"; // Import useRouter
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 const ProductCard = ({ product }: { product: Product }) => {
-  const { addToCart, state } = useStore(); // Access state to check cart items
-  const router = useRouter(); // Initialize useRouter
+  const { addToCart, state } = useStore(); 
+  const router = useRouter(); 
   const { data: session } = useSession();
   const [isAdding, setIsAdding] = useState(false);
 
@@ -39,15 +39,13 @@ const ProductCard = ({ product }: { product: Product }) => {
     }
 
     if (isInCart) {
-      router.push("/cart"); // Redirect to cart if already in cart
+      router.push("/cart"); 
     } else {
       setIsAdding(true);
       try {
-        await addToCart(product.productId as string, 1); // Pass itemType
-        // You can add a success toast notification here
+        await addToCart(product.productId as string, 1); 
       } catch (error) {
         console.error("Error adding to cart:", error);
-        // You can add an error toast notification here
       } finally {
         setIsAdding(false);
       }
@@ -83,10 +81,10 @@ const ProductCard = ({ product }: { product: Product }) => {
               ${product.price.toFixed(2)}
             </p>
             <Button
-              onClick={handleButtonClick} // Use the new handler
+              onClick={handleButtonClick} 
               size="sm"
               className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-4"
-              disabled={isAdding && !!session} // Disable only when adding and logged in
+              disabled={isAdding && !!session} 
             >
               {!session ? (
                 "Sign in to Add"

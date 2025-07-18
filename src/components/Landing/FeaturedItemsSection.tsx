@@ -16,22 +16,21 @@ export const FeaturedItemsSection = () => {
   useEffect(() => {
     const fetchFeaturedProducts = async () => {
       setIsLoading(true);
-      setError(null); // Clear previous errors
+      setError(null);
       try {
         // Use axios to make the GET request
         const response = await axios.get("/api/products", {
           params: {
-            sort: "popularity", // Using 'popularity' or 'newest' as desired
+            sort: "popularity",
             limit: 10,
           },
         });
 
-        // Backend /api/products returns an object with products array
         if (response.data && Array.isArray(response.data.products)) {
           const formattedProducts = response.data.products.map((p: any) => ({
             ...p,
-            id: p._id, // Map MongoDB's _id to id
-            imageUrl: p.images?.[0] || "/placeholder.svg", // FIX: Correctly map imageUrl from the images array
+            id: p._id,
+            imageUrl: p.images?.[0] || "/placeholder.svg",
           }));
           setProducts(formattedProducts);
         } else {
@@ -88,12 +87,10 @@ export const FeaturedItemsSection = () => {
         </motion.div>
 
         <div className="relative w-full overflow-hidden">
-          {/* Apply a fade-out gradient on the sides */}
           <div className="absolute top-0 left-0 z-10 h-full w-16 bg-gradient-to-r from-background to-transparent" />
           <div className="absolute top-0 right-0 z-10 h-full w-16 bg-gradient-to-l from-background to-transparent" />
 
           {isLoading ? (
-            // Skeleton loader while fetching data
             <div className="flex space-x-6">
               {[...Array(5)].map((_, i) => (
                 <div
@@ -105,12 +102,11 @@ export const FeaturedItemsSection = () => {
           ) : (
             <motion.div
               className="flex"
-              // Animate the marquee effect
               animate={{
                 x: ["0%", "-100%"],
                 transition: {
                   ease: "linear",
-                  duration: 40, // Adjust duration to control speed
+                  duration: 40,
                   repeat: Infinity,
                 },
               }}

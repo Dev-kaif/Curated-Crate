@@ -37,7 +37,6 @@ interface Review {
   createdAt: string;
 }
 
-// Review submission form component
 const ReviewForm = ({
   themedBoxId,
   onReviewSubmitted,
@@ -116,7 +115,6 @@ const ReviewForm = ({
   );
 };
 
-// A new type that includes any extra fields your mock data had
 type ThemedBoxWithDetails = ThemedBox & {
   images: string[];
   reviews: Review[];
@@ -128,7 +126,7 @@ export default function ThemedBoxDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { data: session } = useSession();
-  const [selectedImage, setSelectedImage] = useState(0); // This is the state declaration
+  const [selectedImage, setSelectedImage] = useState(0);
   const [themedBox, setThemedBox] = useState<ThemedBoxWithDetails | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -207,7 +205,6 @@ export default function ThemedBoxDetailPage() {
     return (
       <PageLayout>
         <div className="container mx-auto py-12 px-6">
-          {/* Skeleton Loader */}
           <div className="grid lg:grid-cols-2 gap-12">
             <div className="space-y-4">
               <div className="aspect-square bg-foreground/5 rounded-2xl animate-pulse" />

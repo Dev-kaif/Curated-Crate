@@ -13,7 +13,7 @@ import {
   type ThemedBox,
   type Product,
 } from "@/contexts/store-context";
-import { useRouter } from "next/navigation"; 
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -28,9 +28,9 @@ const iconMap: { [key: string]: React.ElementType } = {
 
 // The card component for a single themed box
 const ThemedBoxCard = ({ box }: { box: ThemedBox }) => {
-  const router = useRouter(); // Initialize useRouter
+  const router = useRouter();
   const { data: session } = useSession();
-  const [isBuying, setIsBuying] = useState(false); // Changed from isAdding to isBuying
+  const [isBuying, setIsBuying] = useState(false);
 
   // Find a matching icon, or use a default one
   const IconComponent = Object.keys(iconMap).find((key) =>
@@ -44,16 +44,13 @@ const ThemedBoxCard = ({ box }: { box: ThemedBox }) => {
       router.push("/login");
       return;
     }
-    // Renamed function
-    setIsBuying(true); // Set loading state
+    setIsBuying(true);
     try {
-      // Navigate directly to checkout, passing the themedBoxId
       router.push(`/checkout?themedBoxId=${box.id}`);
     } catch (error) {
       console.error("Error initiating themed box purchase:", error);
-      // You could add an error toast notification here
     } finally {
-      setIsBuying(false); // Reset loading state
+      setIsBuying(false);
     }
   };
 
@@ -120,12 +117,11 @@ const ThemedBoxCard = ({ box }: { box: ThemedBox }) => {
                   View Details
                 </Button>
               </Link>
-              {/* Changed to Buy Now button */}
               <Button
                 variant="outline"
                 className="w-full rounded-full bg-transparent text-sm"
-                onClick={handleBuyNow} // Call new function
-                disabled={isBuying && !!session} // Use new loading state
+                onClick={handleBuyNow} 
+                disabled={isBuying && !!session} 
               >
                 {!session
                   ? "Sign in to Buy"

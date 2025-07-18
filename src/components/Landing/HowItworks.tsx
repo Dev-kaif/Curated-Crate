@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import { Box, Sparkles, Gift } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
-// How It Works Section
 export const HowItWorksSection = () => {
   const steps = [
     {

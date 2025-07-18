@@ -44,13 +44,11 @@ export const Navigation = () => {
 
   const handleSearchClick = () => {
     setIsSearchOverlayOpen(true);
-    // Optional: Disable body scroll when overlay is open
     document.body.style.overflow = "hidden";
   };
 
   const handleCloseSearchOverlay = () => {
     setIsSearchOverlayOpen(false);
-    // Re-enable body scroll
     document.body.style.overflow = "";
   };
 

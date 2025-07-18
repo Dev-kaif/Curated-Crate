@@ -1,4 +1,3 @@
-// src/lib/auth.ts
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 import { AuthenticatedUser } from "@/types";

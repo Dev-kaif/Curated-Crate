@@ -183,16 +183,13 @@ export default function AddressesPage() {
   const handleSaveAddress = async (addressToSave: IAddress) => {
     let updatedAddresses;
     if (addressToSave._id) {
-      // Editing existing address
       updatedAddresses = addresses.map((addr) =>
         addr._id === addressToSave._id ? addressToSave : addr
       );
     } else {
-      // Adding new address
       updatedAddresses = [...addresses, addressToSave];
     }
 
-    // Ensure only one default address
     if (addressToSave.isDefault) {
       updatedAddresses = updatedAddresses.map((addr) => ({
         ...addr,

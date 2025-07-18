@@ -42,7 +42,6 @@ export default function ContactPage() {
       }
 
       setSuccess(data.message);
-      // Reset form after successful submission
       setFormData({ name: "", email: "", subject: "", message: "" });
     } catch (err: any) {
       setError(err.message);

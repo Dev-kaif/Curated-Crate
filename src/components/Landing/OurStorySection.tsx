@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-// Our Story Section
 export const OurStorySection = () => {
   return (
     <section className="py-20 px-6 bg-foreground/5">

@@ -1,18 +1,17 @@
-import mongoose, { Mongoose } from 'mongoose';
-import { MONGODB_URL } from './config';
-
+import mongoose, { Mongoose } from "mongoose";
+import { MONGODB_URL } from "./config";
 
 if (!MONGODB_URL) {
-  throw new Error('Please define the MONGODB_URL environment variable inside .env.local');
+  throw new Error(
+    "Please define the MONGODB_URL environment variable inside .env.local"
+  );
 }
 
-// Define global type for caching
 interface MongooseGlobalCache {
   conn: Mongoose | null;
   promise: Promise<Mongoose> | null;
 }
 
-// Attach to globalThis safely
 const globalWithMongoose = globalThis as typeof globalThis & {
   _mongoose: MongooseGlobalCache;
 };

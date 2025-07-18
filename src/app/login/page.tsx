@@ -3,8 +3,8 @@
 import type React from "react";
 import { motion } from "framer-motion";
 import { useState } from "react";
-import { useRouter } from "next/navigation"; // Import useRouter
-import { signIn } from "next-auth/react"; // Import signIn from next-auth
+import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,8 +19,8 @@ export default function LoginPage() {
     email: "",
     password: "",
   });
-  const [error, setError] = useState<string | null>(null); // State for login errors
-  const [isLoading, setIsLoading] = useState(false); // State for loading indicator
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,22 +31,19 @@ export default function LoginPage() {
     try {
       // Use the signIn function from NextAuth.js
       const result = await signIn("credentials", {
-        redirect: false, // We handle the redirect manually
+        redirect: false,
         email: formData.email,
         password: formData.password,
       });
 
       if (result?.error) {
-        // If NextAuth returns an error, display it
         setError("Invalid email or password. Please try again.");
         setIsLoading(false);
       } else if (result?.ok) {
-        // If login is successful, redirect to the homepage
         router.push("/");
-        router.refresh(); // Refresh the page to update session state everywhere
+        router.refresh();
       }
     } catch (err) {
-      // Handle unexpected errors
       console.error("Login failed:", err);
       setError("An unexpected error occurred. Please try again later.");
       setIsLoading(false);

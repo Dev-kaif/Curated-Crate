@@ -10,7 +10,6 @@ import { TestimonialsSection } from "@/components/Landing/TestimonialsSection";
 import { ThemedBoxesSection } from "@/components/Landing/ThemedBoxesSection";
 import { PageLayout } from "@/components/Layout/page-layout";
 
-// Main Component
 export default function Landing() {
   return (
     <PageLayout>

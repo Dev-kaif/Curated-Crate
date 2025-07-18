@@ -24,7 +24,6 @@ export default function AccountDashboard() {
     const fetchOrders = async () => {
       setIsLoading(true);
       try {
-        // Ensure the backend API returns an object with a 'data' property
         const response = await axios.get<{ success: boolean; data: IOrder[] }>(
           "/api/orders"
         );
@@ -72,7 +71,6 @@ export default function AccountDashboard() {
   return (
     <AccountLayout>
       <div className="space-y-8">
-        {/* Welcome Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -102,7 +100,6 @@ export default function AccountDashboard() {
                       <p className="text-foreground/60 text-sm font-medium">
                         {stat.name}
                       </p>
-                      {/* FIX: Replaced <p> with <div> to correctly wrap Skeleton */}
                       <div className="text-2xl font-bold text-foreground group-hover:text-primary transition-colors">
                         {isLoading ? (
                           <Skeleton className="h-8 w-10 mt-1" />

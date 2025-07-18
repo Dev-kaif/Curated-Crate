@@ -3,21 +3,27 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Package, Truck, CreditCard, CheckCircle, XCircle, ArrowLeft } from "lucide-react";
+import {
+  Package,
+  Truck,
+  CreditCard,
+  CheckCircle,
+  XCircle,
+  ArrowLeft,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AccountLayout } from "@/components/account-layout";
-import { IOrder } from "@/types"; 
+import { IOrder } from "@/types";
 import axios from "axios";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
-// import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { id: orderId } = params; // Get the order ID from the URL
+  const { id: orderId } = params;
 
   const [order, setOrder] = useState<IOrder | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,26 +31,34 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
-      if (!orderId) return; // Ensure orderId is available
+      if (!orderId) return;
       setIsLoading(true);
       setError(null);
       try {
-        const response = await axios.get<{ success: boolean; data: IOrder }>(`/api/orders/${orderId}`);
+        const response = await axios.get<{ success: boolean; data: IOrder }>(
+          `/api/orders/${orderId}`
+        );
         if (response.data.success) {
           setOrder(response.data.data);
         } else {
-          throw new Error(response.data.success || "Failed to fetch order details.");
+          throw new Error(
+            response.data.success || "Failed to fetch order details."
+          );
         }
       } catch (err: any) {
         console.error("Error fetching order details:", err);
-        setError(err.response?.data?.message || err.message || "An unexpected error occurred while fetching order details.");
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            "An unexpected error occurred while fetching order details."
+        );
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchOrderDetails();
-  }, [orderId]); // Re-fetch when orderId changes
+  }, [orderId]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -88,7 +102,9 @@ export default function OrderDetailPage() {
             {error || "Order Not Found"}
           </h2>
           <p className="text-foreground/70 mb-8">
-            {error ? "There was an issue loading the order details." : "The order you are looking for does not exist or you do not have permission to view it."}
+            {error
+              ? "There was an issue loading the order details."
+              : "The order you are looking for does not exist or you do not have permission to view it."}
           </p>
           <Link href="/account/orders">
             <Button>
@@ -121,17 +137,33 @@ export default function OrderDetailPage() {
             </h1>
           </div>
           <p className="text-foreground/70 text-lg">
-            Order ID: <span className="font-medium text-primary">#{order._id ? (order._id as string).slice(-8).toUpperCase() : 'N/A'}</span>
+            Order ID:{" "}
+            <span className="font-medium text-primary">
+              #
+              {order._id
+                ? (order._id as string).slice(-8).toUpperCase()
+                : "N/A"}
+            </span>
           </p>
           <p className="text-foreground/70 text-lg">
-            Placed On: <span className="font-medium">{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}</span>
+            Placed On:{" "}
+            <span className="font-medium">
+              {order.createdAt
+                ? new Date(order.createdAt).toLocaleDateString()
+                : "N/A"}
+            </span>
           </p>
           <p className="text-foreground/70 text-lg">
-            Total Amount: <span className="font-bold text-primary">${order.totalPrice ? order.totalPrice.toFixed(2) : '0.00'}</span>
+            Total Amount:{" "}
+            <span className="font-bold text-primary">
+              ${order.totalPrice ? order.totalPrice.toFixed(2) : "0.00"}
+            </span>
           </p>
           <p className="text-foreground/70 text-lg">
             Status:{" "}
-            <Badge className={`${getStatusColor(order.orderStatus)} border-0 capitalize`}>
+            <Badge
+              className={`${getStatusColor(order.orderStatus)} border-0 capitalize`}
+            >
               {order.orderStatus}
             </Badge>
           </p>
@@ -152,9 +184,16 @@ export default function OrderDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1 text-foreground/70">
-                <p className="font-medium text-foreground">{order.shippingAddress.street}</p>
-                {order.shippingAddress.apartment && <p>{order.shippingAddress.apartment}</p>}
-                <p>{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}</p>
+                <p className="font-medium text-foreground">
+                  {order.shippingAddress.street}
+                </p>
+                {order.shippingAddress.apartment && (
+                  <p>{order.shippingAddress.apartment}</p>
+                )}
+                <p>
+                  {order.shippingAddress.city}, {order.shippingAddress.state}{" "}
+                  {order.shippingAddress.zipCode}
+                </p>
                 <p>{order.shippingAddress.country}</p>
               </CardContent>
             </Card>
@@ -174,13 +213,20 @@ export default function OrderDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1 text-foreground/70">
-                <p className="font-medium text-foreground">Method: {order.paymentMethod.replace(/_/g, ' ')}</p>
+                <p className="font-medium text-foreground">
+                  Method: {order.paymentMethod.replace(/_/g, " ")}
+                </p>
                 {order.isPaid ? (
                   <p className="flex items-center text-green-600">
-                    <CheckCircle className="w-4 h-4 mr-1" /> Paid on {order.paidAt ? new Date(order.paidAt).toLocaleDateString() : 'N/A'}
+                    <CheckCircle className="w-4 h-4 mr-1" /> Paid on{" "}
+                    {order.paidAt
+                      ? new Date(order.paidAt).toLocaleDateString()
+                      : "N/A"}
                   </p>
                 ) : (
-                  <p className="text-red-600">Payment Status: {order.paymentStatus}</p>
+                  <p className="text-red-600">
+                    Payment Status: {order.paymentStatus}
+                  </p>
                 )}
               </CardContent>
             </Card>
@@ -202,10 +248,15 @@ export default function OrderDetailPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {order.items.length === 0 ? (
-                <p className="text-center text-foreground/70 py-4">No items found for this order.</p>
+                <p className="text-center text-foreground/70 py-4">
+                  No items found for this order.
+                </p>
               ) : (
                 order.items.map((item, index) => (
-                  <div key={index} className="flex items-center space-x-4 p-4 bg-foreground/5 rounded-lg">
+                  <div
+                    key={index}
+                    className="flex items-center space-x-4 p-4 bg-foreground/5 rounded-lg"
+                  >
                     <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden">
                       <img
                         src={item.imageUrl || "/placeholder.svg"}
@@ -214,9 +265,15 @@ export default function OrderDetailPage() {
                       />
                     </div>
                     <div className="flex-grow">
-                      <h3 className="font-medium text-foreground">{item.name}</h3>
-                      <p className="text-sm text-foreground/70">Quantity: {item.quantity}</p>
-                      <p className="text-sm font-bold text-primary">${item.price.toFixed(2)} each</p>
+                      <h3 className="font-medium text-foreground">
+                        {item.name}
+                      </h3>
+                      <p className="text-sm text-foreground/70">
+                        Quantity: {item.quantity}
+                      </p>
+                      <p className="text-sm font-bold text-primary">
+                        ${item.price.toFixed(2)} each
+                      </p>
                     </div>
                     <span className="font-bold text-lg text-foreground">
                       ${(item.price * item.quantity).toFixed(2)}

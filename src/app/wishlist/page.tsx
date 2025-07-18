@@ -1,24 +1,24 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react"; // Import useEffect
+import { useState, useEffect } from "react";
 import { Heart, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageLayout } from "@/components/Layout/page-layout";
 import { useStore, type Product } from "@/contexts/store-context";
 import Link from "next/link";
-import axios from "axios"; // Import axios
-import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton for loading state
+import axios from "axios";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 export default function WishlistPage() {
-  const { state, addToCart, removeFromWishlist, dispatch } = useStore(); // Destructure dispatch
+  const { state, addToCart, removeFromWishlist, dispatch } = useStore();
   const { data: session, status } = useSession();
   const router = useRouter();
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
-  const [isLoadingWishlist, setIsLoadingWishlist] = useState(true); // New loading state for initial fetch
+  const [isLoadingWishlist, setIsLoadingWishlist] = useState(true);
 
   // Fetch wishlist on component mount if the user is authenticated
   useEffect(() => {
@@ -49,7 +49,7 @@ export default function WishlistPage() {
       }
     };
     fetchWishlist();
-  }, [status, dispatch]); // Depend on session status and dispatch
+  }, [status, dispatch]);
 
   const moveToCart = async (product: Product) => {
     setLoadingItemId(product.productId as string);
@@ -222,7 +222,7 @@ export default function WishlistPage() {
                       <div className="space-y-2">
                         {isInCart ? (
                           <Button
-                            onClick={() => (window.location.href = "/cart")} // Direct navigation to cart
+                            onClick={() => (window.location.href = "/cart")}
                             className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground rounded-full"
                           >
                             <ShoppingBag className="w-4 h-4 mr-2" /> In Cart
@@ -247,7 +247,7 @@ export default function WishlistPage() {
                         <Button
                           onClick={() =>
                             removeFromWishlist(product.productId as string)
-                          } // Call removeFromWishlist from useStore
+                          }
                           disabled={loadingItemId === product.productId}
                           variant="outline"
                           className="w-full rounded-full bg-transparent"

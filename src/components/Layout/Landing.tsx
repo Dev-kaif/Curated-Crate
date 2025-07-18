@@ -107,8 +107,6 @@ export default function LoadingPage() {
             ></animate>
           </circle>
         </svg>
-        {/* End of SVG Placeholder */}
-
         <h2 className="text-xl font-semibold text-foreground">Loading...</h2>
         <p className="text-foreground/70">Please wait a moment.</p>
       </div>

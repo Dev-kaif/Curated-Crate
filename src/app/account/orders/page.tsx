@@ -21,31 +21,30 @@ export default function OrderHistoryPage() {
   useEffect(() => {
     const fetchOrders = async () => {
       if (!session) {
-        setIsLoading(false); // Stop loading if no session
+        setIsLoading(false); 
         return;
       }
       setIsLoading(true);
       try {
-        // FIX: Access data.data from the API response
         const response = await axios.get<{ success: boolean; data: IOrder[] }>(
           "/api/orders"
         );
         if (response.data.success) {
-          setOrders(response.data.data); // Correctly set the array of orders
+          setOrders(response.data.data); 
         } else {
           console.error("Failed to fetch orders:", response.data.data);
-          setOrders([]); // Ensure orders is an empty array on failure
+          setOrders([]); 
         }
       } catch (error) {
         console.error("Failed to fetch orders:", error);
-        setOrders([]); // Ensure orders is an empty array on error
+        setOrders([]);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchOrders();
-  }, [session]); // Re-run effect when session changes
+  }, [session]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -113,7 +112,6 @@ export default function OrderHistoryPage() {
                   </thead>
                   <tbody>
                     {isLoading ? (
-                      // Skeleton loader rows
                       [...Array(3)].map((_, i) => (
                         <tr key={i} className="border-b border-foreground/10">
                           <td className="p-4">

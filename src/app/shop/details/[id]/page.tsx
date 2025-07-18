@@ -15,14 +15,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageLayout } from "@/components/Layout/page-layout";
-import { useStore, type Product } from "@/contexts/store-context"; // Import Product for type
+import { useStore, type Product } from "@/contexts/store-context";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import axios from "axios";
 
-// Interface for the Review structure
 interface Review {
   _id: string;
   userName: string;
@@ -31,12 +30,11 @@ interface Review {
   createdAt: string;
 }
 
-// Review submission form component
 const ReviewForm = ({
-  productId, // Now accepts productId
+  productId, 
   onReviewSubmitted,
 }: {
-  productId: string; // Product ID is now required
+  productId: string; 
   onReviewSubmitted: (newReview: Review) => void;
 }) => {
   const [rating, setRating] = useState(0);
@@ -59,7 +57,6 @@ const ReviewForm = ({
         throw new Error(data.message || "Failed to submit review.");
       }
       onReviewSubmitted(data.data);
-      // Clear form on success
       setRating(0);
       setComment("");
     } catch (err: any) {
@@ -121,9 +118,7 @@ export default function ProductDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
-  // State for Add to Cart button loading
   const [isAddingToCart, setIsAddingToCart] = useState(false);
-  // State for Add to Wishlist button loading
   const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
 
   useEffect(() => {
@@ -169,13 +164,13 @@ export default function ProductDetailPage() {
       return;
     }
     if (!product || !product._id) return;
-    setIsAddingToCart(true); // Set loading state for Add to Cart
+    setIsAddingToCart(true); 
     try {
       await addToCart(product._id, quantity);
     } catch (err) {
       console.error("Error adding to cart:", err);
     } finally {
-      setIsAddingToCart(false); // Reset loading state
+      setIsAddingToCart(false);
     }
   };
 
@@ -186,18 +181,16 @@ export default function ProductDetailPage() {
     }
     if (!product || !product._id) return;
 
-    // Check if product is already in cart, if so, prevent adding to wishlist
     const productIsInCart = state.cart.items.some(
       (item) => item.productId === product.productId
     );
 
     if (productIsInCart) {
-      // Optionally, show a toast notification here
       console.log("Product is already in cart, cannot add to wishlist.");
       return;
     }
 
-    setIsAddingToWishlist(true); // Set loading state for Wishlist
+    setIsAddingToWishlist(true);
     try {
       const isInWishlist = state.wishlist.some(
         (item) => item._id === product._id
@@ -211,7 +204,7 @@ export default function ProductDetailPage() {
     } catch (err) {
       console.error("Error toggling wishlist:", err);
     } finally {
-      setIsAddingToWishlist(false); // Reset loading state
+      setIsAddingToWishlist(false); 
     }
   };
 
@@ -345,7 +338,7 @@ export default function ProductDetailPage() {
                     size="sm"
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
                     className="p-2 rounded-full"
-                    disabled={isAddingToCart} // Disable if adding to cart
+                    disabled={isAddingToCart} 
                   >
                     <Minus className="w-4 h-4" />
                   </Button>
@@ -355,7 +348,7 @@ export default function ProductDetailPage() {
                     size="sm"
                     onClick={() => setQuantity(quantity + 1)}
                     className="p-2 rounded-full"
-                    disabled={isAddingToCart} // Disable if adding to cart
+                    disabled={isAddingToCart} 
                   >
                     <Plus className="w-4 h-4" />
                   </Button>
@@ -384,7 +377,7 @@ export default function ProductDetailPage() {
                     onClick={handleAddToCart}
                     size="lg"
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 text-lg font-medium rounded-full"
-                    disabled={isAddingToCart} // Disable if adding to cart
+                    disabled={isAddingToCart}
                   >
                     {isAddingToCart
                       ? "Adding..."
@@ -400,7 +393,7 @@ export default function ProductDetailPage() {
                     variant="outline"
                     size="lg"
                     className="w-full py-4 text-lg font-medium rounded-full bg-transparent"
-                    disabled={isInCart || isAddingToWishlist} // Disable if in cart or adding to wishlist
+                    disabled={isInCart || isAddingToWishlist} 
                   >
                     <Heart
                       className={`w-5 h-5 mr-2 ${

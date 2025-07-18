@@ -6,13 +6,8 @@ export const Footer = () => {
 
   return (
     <footer className="py-16 px-6 bg-foreground/5">
-      {" "}
-      {/* Changed to a lighter background for better contrast */}
       <div className="container mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-          {" "}
-          {/* Changed to 4 columns for more links */}
-          {/* Column 1: Brand Info */}
           <div className="space-y-4 md:col-span-1">
             <h3 className="text-2xl font-serif font-bold text-foreground">
               Curated Crate
@@ -23,7 +18,7 @@ export const Footer = () => {
             </p>
             <div className="flex space-x-4 mt-4">
               <a
-                href="https://instagram.com" // Replace with actual links
+                href="https://instagram.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 bg-foreground/10 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
@@ -32,7 +27,7 @@ export const Footer = () => {
                 <Instagram className="w-5 h-5" />
               </a>
               <a
-                href="https://facebook.com" // Replace with actual links
+                href="https://facebook.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 bg-foreground/10 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
@@ -41,7 +36,7 @@ export const Footer = () => {
                 <Facebook className="w-5 h-5" />
               </a>
               <a
-                href="https://twitter.com" // Replace with actual links
+                href="https://twitter.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 bg-foreground/10 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
@@ -50,7 +45,7 @@ export const Footer = () => {
                 <Twitter className="w-5 h-5" />
               </a>
               <a
-                href="https://linkedin.com" // Replace with actual links
+                href="https://linkedin.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 bg-foreground/10 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
@@ -60,7 +55,7 @@ export const Footer = () => {
               </a>
             </div>
           </div>
-          {/* Column 2: Shop & Explore */}
+
           <div className="space-y-4 md:col-span-1">
             <h4 className="font-bold text-foreground text-lg">
               Shop & Explore
@@ -83,7 +78,7 @@ export const Footer = () => {
               ))}
             </div>
           </div>
-          {/* Column 3: About Us & Support */}
+
           <div className="space-y-4 md:col-span-1">
             <h4 className="font-bold text-foreground text-lg">
               About & Support
@@ -106,7 +101,7 @@ export const Footer = () => {
               ))}
             </div>
           </div>
-          {/* Column 4: Legal & Policies */}
+
           <div className="space-y-4 md:col-span-1">
             <h4 className="font-bold text-foreground text-lg">
               Legal & Policies

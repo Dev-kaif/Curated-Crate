@@ -11,7 +11,6 @@ interface CheckoutLayoutProps {
 export function CheckoutLayout({ children }: CheckoutLayoutProps) {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
-      <SearchOverlay />
       <header className="py-6 px-6 border-b border-foreground/10">
         <div className="container mx-auto">
           <Link href="/" className="text-2xl font-serif font-bold text-foreground hover:text-primary transition-colors">

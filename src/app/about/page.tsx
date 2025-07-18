@@ -37,7 +37,6 @@ export default function AboutPage() {
     <PageLayout>
       <div className="py-12 px-6">
         <div className="container mx-auto max-w-6xl">
-          {/* Hero Section with Background Image */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -65,7 +64,6 @@ export default function AboutPage() {
             </div>
           </motion.div>
 
-          {/* Story Content with Interspersed Images */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -113,7 +111,6 @@ export default function AboutPage() {
             </div>
           </motion.div>
 
-          {/* Values Section with Images */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -149,7 +146,6 @@ export default function AboutPage() {
             </div>
           </motion.div>
 
-          {/* Mission Statement */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}

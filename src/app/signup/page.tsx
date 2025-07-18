@@ -65,7 +65,6 @@ export default function SignUpPage() {
         throw new Error(data.message || "Something went wrong.");
       }
 
-      // If signup is successful, automatically sign the user in
       const signInResult = await signIn("credentials", {
         redirect: false,
         email: formData.email,

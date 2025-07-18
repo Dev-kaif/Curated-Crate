@@ -10,7 +10,6 @@ export const HeroSection = () => {
     <section className="pt-12 pb-20 px-6">
       <div className="container mx-auto">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left Column - Text */}
           <div className="space-y-8">
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
@@ -57,14 +56,12 @@ export const HeroSection = () => {
             </motion.div>
           </div>
 
-          {/* Right Column - Visual (Image) */}
           <motion.div
             initial={{ opacity: 0, scale: 0.8, filter: "blur(10px)" }}
             animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
             transition={{ duration: 1, delay: 0.4 }}
             className="relative flex items-center justify-center" // Added flex for centering
           >
-            {/* Replaced the placeholder div with an actual image */}
             <img
               src="/hero.jpg"
               alt="Beautifully curated gift box with artisanal items"

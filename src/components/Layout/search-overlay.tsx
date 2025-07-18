@@ -60,7 +60,6 @@ export const SearchOverlay = ({ isOpen, onClose }: SearchOverlayProps) => {
           `/api/search?q=${debouncedSearchTerm}`
         );
         if (response.data.success) {
-          // FIX: Correctly map imageUrl for products and ensure type casting
           const products: SearchResultItem[] = response.data.data.products.map(
             (p: any) => ({
               ...p,
@@ -68,7 +67,7 @@ export const SearchOverlay = ({ isOpen, onClose }: SearchOverlayProps) => {
               imageUrl:
                 p.images && p.images.length > 0
                   ? p.images[0]
-                  : "/placeholder.svg", // Ensure imageUrl is set from images[0]
+                  : "/placeholder.svg",
               type: "product" as const,
             })
           );
@@ -76,7 +75,7 @@ export const SearchOverlay = ({ isOpen, onClose }: SearchOverlayProps) => {
             response.data.data.themedBoxes.map((tb: any) => ({
               ...tb,
               id: tb._id,
-              imageUrl: tb.image || "/placeholder.svg", // ThemedBox uses 'image' property
+              imageUrl: tb.image || "/placeholder.svg",
               type: "themedBox" as const,
             }));
 
