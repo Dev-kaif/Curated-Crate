@@ -11,6 +11,7 @@ import { IOrder } from "@/types";
 import axios from "axios";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 
 export default function OrderHistoryPage() {
   const [orders, setOrders] = useState<IOrder[]>([]);
@@ -19,20 +20,32 @@ export default function OrderHistoryPage() {
 
   useEffect(() => {
     const fetchOrders = async () => {
-      if (!session) return;
+      if (!session) {
+        setIsLoading(false); // Stop loading if no session
+        return;
+      }
       setIsLoading(true);
       try {
-        const { data } = await axios.get<IOrder[]>("/api/orders");
-        setOrders(data);
+        // FIX: Access data.data from the API response
+        const response = await axios.get<{ success: boolean; data: IOrder[] }>(
+          "/api/orders"
+        );
+        if (response.data.success) {
+          setOrders(response.data.data); // Correctly set the array of orders
+        } else {
+          console.error("Failed to fetch orders:", response.data.data);
+          setOrders([]); // Ensure orders is an empty array on failure
+        }
       } catch (error) {
         console.error("Failed to fetch orders:", error);
+        setOrders([]); // Ensure orders is an empty array on error
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchOrders();
-  }, [session]);
+  }, [session]); // Re-run effect when session changes
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -100,6 +113,7 @@ export default function OrderHistoryPage() {
                   </thead>
                   <tbody>
                     {isLoading ? (
+                      // Skeleton loader rows
                       [...Array(3)].map((_, i) => (
                         <tr key={i} className="border-b border-foreground/10">
                           <td className="p-4">
@@ -123,6 +137,7 @@ export default function OrderHistoryPage() {
                         </tr>
                       ))
                     ) : orders.length > 0 ? (
+                      // Display actual orders if available
                       orders.map((order, index) => (
                         <motion.tr
                           key={order._id as string}
@@ -137,18 +152,28 @@ export default function OrderHistoryPage() {
                                 <Package className="w-4 h-4 text-primary" />
                               </div>
                               <span className="font-medium text-foreground">
-                                #{(order._id as string).slice(-6).toUpperCase()}
+                                #
+                                {order._id
+                                  ? (order._id as string)
+                                      .slice(-6)
+                                      .toUpperCase()
+                                  : "N/A"}
                               </span>
                             </div>
                           </td>
                           <td className="p-4 text-foreground/70">
-                            {new Date(order.createdAt!).toLocaleDateString()}
+                            {order.createdAt
+                              ? new Date(order.createdAt).toLocaleDateString()
+                              : "N/A"}
                           </td>
                           <td className="p-4 text-foreground/70">
-                            {order.items.length} items
+                            {order.items?.length || 0} items
                           </td>
                           <td className="p-4 font-medium text-foreground">
-                            ${order.totalPrice.toFixed(2)}
+                            $
+                            {order.totalPrice
+                              ? order.totalPrice.toFixed(2)
+                              : "0.00"}
                           </td>
                           <td className="p-4">
                             <Badge
@@ -158,18 +183,21 @@ export default function OrderHistoryPage() {
                             </Badge>
                           </td>
                           <td className="p-4">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="rounded-full bg-transparent"
-                            >
-                              <Eye className="w-4 h-4 mr-2" />
-                              View
-                            </Button>
+                            <Link href={`/account/orders/details/${order._id}`}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="rounded-full bg-transparent"
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                View
+                              </Button>
+                            </Link>
                           </td>
                         </motion.tr>
                       ))
                     ) : (
+                      // Message when no orders are found
                       <tr>
                         <td
                           colSpan={6}

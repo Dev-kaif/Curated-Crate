@@ -5,7 +5,14 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import axios from "axios";
-import { Eye, EyeOff, AlertCircle, Edit, XCircle } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Edit,
+  XCircle,
+  KeyRound,
+} from "lucide-react"; // Import KeyRound for password button
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,11 +21,22 @@ import { AccountLayout } from "@/components/account-layout";
 import { IUser } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog"; // Import Dialog components
 
 export default function ProfilePage() {
   const { data: session, update } = useSession();
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // Added for confirm password in modal
 
   const [initialProfileData, setInitialProfileData] = useState<Partial<IUser>>(
     {}
@@ -32,14 +50,16 @@ export default function ProfilePage() {
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [isFormValid, setIsFormValid] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
-  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // For initial data fetch
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false); // For profile form submission
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false); // For password form submission
 
   const [profileError, setProfileError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false); // NEW: State for modal visibility
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -61,16 +81,16 @@ export default function ProfilePage() {
     fetchUserData();
   }, [session]);
 
-  // Validate form whenever profileData changes while in edit mode
+  // Validate profile form whenever profileData changes while in edit mode
   useEffect(() => {
     if (isEditMode) {
       const { firstName, lastName, phone } = profileData;
-      const isValid =
-        firstName?.trim() !== "" &&
-        lastName?.trim() !== "" &&
-        phone?.trim() !== "" &&
-        phone?.trim().length === 13; // +91 and 10 digits
-      setIsFormValid(isValid);
+      // Basic validation for name fields
+      const isNameValid = firstName?.trim() !== "" && lastName?.trim() !== "";
+      // Basic validation for phone number (e.g., starts with +91 and has 12 characters total)
+      const isPhoneValid = phone?.startsWith("+91") && phone?.length === 13;
+
+      setIsFormValid((isNameValid && isPhoneValid) as boolean);
     } else {
       setIsFormValid(false);
     }
@@ -80,6 +100,7 @@ export default function ProfilePage() {
     const { id, value } = e.target;
 
     if (id === "phone") {
+      // Allow only digits and limit length for phone number
       const digits = value.replace(/\D/g, "");
       let formatted = "+91";
       if (digits.length > 2) {
@@ -98,19 +119,28 @@ export default function ProfilePage() {
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid) return;
+    if (!isFormValid) {
+      setProfileError(
+        "Please ensure all required fields are filled correctly."
+      );
+      return;
+    }
 
     setIsUpdatingProfile(true);
     setProfileError(null);
     setProfileSuccess(null);
     try {
+      // Exclude email from submission if it's not meant to be changed via this form
       const { email, ...submissionData } = profileData;
       const { data } = await axios.put("/api/users/me", submissionData);
       if (data.success) {
         setProfileSuccess("Profile updated successfully!");
         setInitialProfileData(data.data); // Update initial state to new saved state
         setIsEditMode(false); // Exit edit mode
-        await update({ name: data.data.name });
+        // Update session name if it changed
+        if (data.data.name !== session?.user?.name) {
+          await update({ name: data.data.name });
+        }
       } else {
         throw new Error(data.message || "Failed to update profile.");
       }
@@ -130,16 +160,27 @@ export default function ProfilePage() {
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters long.");
+      return;
+    }
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setPasswordError("New passwords do not match.");
       return;
     }
+    if (!passwordData.currentPassword) {
+      setPasswordError("Current password is required.");
+      return;
+    }
+
     setIsUpdatingPassword(true);
-    setPasswordError(null);
-    setPasswordSuccess(null);
     try {
       const { data } = await axios.put("/api/users/me", {
-        password: passwordData.newPassword,
+        oldPassword: passwordData.currentPassword, // Send old password for verification
+        password: passwordData.newPassword, // Send new password
       });
       if (data.success) {
         setPasswordSuccess("Password changed successfully!");
@@ -148,6 +189,7 @@ export default function ProfilePage() {
           newPassword: "",
           confirmPassword: "",
         });
+        setIsPasswordModalOpen(false); // Close modal on success
       } else {
         throw new Error(data.message || "Failed to change password.");
       }
@@ -222,7 +264,7 @@ export default function ProfilePage() {
                       <AlertDescription>{profileSuccess}</AlertDescription>
                     </Alert>
                   )}
-                  <fieldset disabled={!isEditMode}>
+                  <fieldset disabled={!isEditMode || isUpdatingProfile}>
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="firstName">First Name</Label>
@@ -231,6 +273,7 @@ export default function ProfilePage() {
                           value={profileData.firstName || ""}
                           onChange={handleProfileChange}
                           className="rounded-full border-foreground/20 focus:border-primary disabled:opacity-75"
+                          required
                         />
                       </div>
                       <div className="space-y-2">
@@ -240,6 +283,7 @@ export default function ProfilePage() {
                           value={profileData.lastName || ""}
                           onChange={handleProfileChange}
                           className="rounded-full border-foreground/20 focus:border-primary disabled:opacity-75"
+                          required
                         />
                       </div>
                     </div>
@@ -250,7 +294,7 @@ export default function ProfilePage() {
                         type="email"
                         value={profileData.email || ""}
                         className="rounded-full border-foreground/20 focus:border-primary"
-                        disabled
+                        disabled // Email should not be editable here
                       />
                     </div>
                     <div className="space-y-2 mt-6">
@@ -261,6 +305,7 @@ export default function ProfilePage() {
                           value={profileData.phone || "+91"}
                           onChange={handleProfileChange}
                           className="rounded-full border-foreground/20 focus:border-primary disabled:opacity-75"
+                          required
                         />
                       </div>
                     </div>
@@ -279,6 +324,7 @@ export default function ProfilePage() {
                         variant="ghost"
                         onClick={handleCancelEdit}
                         className="px-8 py-3 rounded-full"
+                        disabled={isUpdatingProfile}
                       >
                         Cancel
                       </Button>
@@ -290,7 +336,7 @@ export default function ProfilePage() {
           </Card>
         </motion.div>
 
-        {/* Change Password */}
+        {/* Change Password Button & Modal Trigger */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -298,97 +344,162 @@ export default function ProfilePage() {
         >
           <Card className="bg-background border-0 shadow-lg">
             <CardContent className="p-6">
-              <h2 className="text-xl font-serif font-bold text-foreground mb-6">
-                Change Password
-              </h2>
-              <form onSubmit={handlePasswordSubmit} className="space-y-6">
-                {passwordError && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>{passwordError}</AlertDescription>
-                  </Alert>
-                )}
-                {passwordSuccess && (
-                  <Alert
-                    variant="default"
-                    className="border-green-500 text-green-700"
-                  >
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Success</AlertTitle>
-                    <AlertDescription>{passwordSuccess}</AlertDescription>
-                  </Alert>
-                )}
-                <div className="space-y-2">
-                  <Label htmlFor="currentPassword">Current Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="currentPassword"
-                      type={showCurrentPassword ? "text" : "password"}
-                      value={passwordData.currentPassword}
-                      onChange={handlePasswordChange}
-                      className="rounded-full border-foreground/20 focus:border-primary pr-12"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setShowCurrentPassword(!showCurrentPassword)
-                      }
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1"
-                    >
-                      {showCurrentPassword ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword">New Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="newPassword"
-                      type={showNewPassword ? "text" : "password"}
-                      value={passwordData.newPassword}
-                      onChange={handlePasswordChange}
-                      className="rounded-full border-foreground/20 focus:border-primary pr-12"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1"
-                    >
-                      {showNewPassword ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={passwordData.confirmPassword}
-                    onChange={handlePasswordChange}
-                    className="rounded-full border-foreground/20 focus:border-primary"
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 rounded-full"
-                  disabled={isUpdatingPassword}
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-serif font-bold text-foreground">
+                  Change Password
+                </h2>
+                <Dialog
+                  open={isPasswordModalOpen}
+                  onOpenChange={setIsPasswordModalOpen}
                 >
-                  {isUpdatingPassword ? "Changing..." : "Change Password"}
-                </Button>
-              </form>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" disabled={isLoading}>
+                      <KeyRound className="w-4 h-4 mr-2" />
+                      Change Password
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Change Your Password</DialogTitle>
+                      <DialogDescription>
+                        Enter your current password and new password to update
+                        your account.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                      {passwordError && (
+                        <Alert variant="destructive">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertTitle>Error</AlertTitle>
+                          <AlertDescription>{passwordError}</AlertDescription>
+                        </Alert>
+                      )}
+                      {passwordSuccess && (
+                        <Alert
+                          variant="default"
+                          className="border-green-500 text-green-700"
+                        >
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertTitle>Success</AlertTitle>
+                          <AlertDescription>{passwordSuccess}</AlertDescription>
+                        </Alert>
+                      )}
+                      <div className="space-y-2">
+                        <Label htmlFor="currentPassword">
+                          Current Password
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="currentPassword"
+                            type={showCurrentPassword ? "text" : "password"}
+                            value={passwordData.currentPassword}
+                            onChange={handlePasswordChange}
+                            className="rounded-full border-foreground/20 focus:border-primary pr-12"
+                            required
+                            disabled={isUpdatingPassword}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setShowCurrentPassword(!showCurrentPassword)
+                            }
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1"
+                            disabled={isUpdatingPassword}
+                          >
+                            {showCurrentPassword ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="newPassword">New Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="newPassword"
+                            type={showNewPassword ? "text" : "password"}
+                            value={passwordData.newPassword}
+                            onChange={handlePasswordChange}
+                            className="rounded-full border-foreground/20 focus:border-primary pr-12"
+                            required
+                            disabled={isUpdatingPassword}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1"
+                            disabled={isUpdatingPassword}
+                          >
+                            {showNewPassword ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">
+                          Confirm New Password
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="confirmPassword"
+                            type={showConfirmPassword ? "text" : "password"}
+                            value={passwordData.confirmPassword}
+                            onChange={handlePasswordChange}
+                            className="rounded-full border-foreground/20 focus:border-primary pr-12"
+                            required
+                            disabled={isUpdatingPassword}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setShowConfirmPassword(!showConfirmPassword)
+                            }
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1"
+                            disabled={isUpdatingPassword}
+                          >
+                            {showConfirmPassword ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <DialogClose asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={isUpdatingPassword}
+                          >
+                            Cancel
+                          </Button>
+                        </DialogClose>
+                        <Button
+                          type="submit"
+                          className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                          disabled={isUpdatingPassword}
+                        >
+                          {isUpdatingPassword
+                            ? "Changing..."
+                            : "Change Password"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
