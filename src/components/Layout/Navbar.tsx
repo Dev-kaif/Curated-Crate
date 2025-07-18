@@ -75,7 +75,7 @@ export const Navigation = () => {
               transition={{ delay: 0.2 }}
             >
               <Link
-                className="text-2xl font-serif font-bold text-foreground hover:text-primary transition-colors flex gap-3 items-center"
+                className=" font-serif font-bold text-foreground hover:text-primary transition-colors flex gap-3 items-center"
                 href="/"
               >
                 <img
@@ -83,7 +83,7 @@ export const Navigation = () => {
                   alt="Curated Crate Logo"
                   className="h-8 w-auto"
                 />
-                <span> Curated Crate</span>
+                <span className="text-xl md:text-2xl "> Curated Crate</span>
               </Link>
             </motion.div>
 
