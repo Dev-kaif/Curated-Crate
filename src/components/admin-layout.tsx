@@ -19,6 +19,7 @@ import {
   Menu,
   LogOut,
 } from "lucide-react";
+import LoadingPage from "./Layout/Landing";
 
 const navigation = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -53,12 +54,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
 
   // While session is loading or if user is not an authenticated admin, show a loader or nothing
   if (status === "loading" || !session || session.user.role !== "admin") {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        {/* You can add a spinner or skeleton loader here */}
-        <p>Loading...</p>
-      </div>
-    );
+    return <LoadingPage />;
   }
 
   const Sidebar = ({ className = "" }: { className?: string }) => (
