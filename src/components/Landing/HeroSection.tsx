@@ -66,7 +66,7 @@ export const HeroSection = () => {
           >
             {/* Replaced the placeholder div with an actual image */}
             <img
-              src="/hero.png"
+              src="/hero.jpg"
               alt="Beautifully curated gift box with artisanal items"
               className="w-full h-auto max-w-lg rounded-3xl shadow-2xl object-cover" // Added object-cover for responsiveness
             />
