@@ -24,6 +24,8 @@ import { Search, Eye, Filter } from "lucide-react";
 import { IOrder, OrderStatus } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDebounce } from "@/hooks/use-debounce";
+import Link from "next/link"; // Import Link
+import axios from "axios";
 
 export default function OrderManagement() {
   const [orders, setOrders] = useState<IOrder[]>([]);
@@ -48,6 +50,12 @@ export default function OrderManagement() {
         return "bg-green-100 text-green-800 border-green-200";
       case "cancelled":
         return "bg-red-100 text-red-800 border-red-200";
+      case "pending": // Added pending status color
+        return "bg-gray-100 text-gray-800 border-gray-200";
+      case "refunded": // Added refunded status color
+        return "bg-purple-100 text-purple-800 border-purple-200";
+      case "completed": // Added completed status color
+        return "bg-teal-100 text-teal-800 border-teal-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
@@ -85,6 +93,7 @@ export default function OrderManagement() {
     orderId: string,
     newStatus: OrderStatus
   ) => {
+    // Optimistic update (optional, but good for UX)
     setOrders((prev) =>
       prev.map((order) =>
         order._id === orderId ? { ...order, orderStatus: newStatus } : order
@@ -92,20 +101,19 @@ export default function OrderManagement() {
     );
 
     try {
-      const res = await fetch(`/api/orders/${orderId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderStatus: newStatus }),
+      // Use axios for PUT request
+      const res = await axios.put(`/api/orders/${orderId}`, {
+        orderStatus: newStatus,
       });
-      const data = await res.json();
+      const data = res.data; // axios wraps response in .data
       if (!data.success) {
         throw new Error(data.message || "Failed to update status");
       }
-      // Re-fetch to confirm change and get latest data
+      // Re-fetch to confirm change and get latest data, or update state with returned data if backend sends it
       fetchOrders();
     } catch (err: any) {
       setError(err.message);
-      // Revert optimistic update on error
+      // Revert optimistic update on error by re-fetching
       fetchOrders();
     }
   };
@@ -136,6 +144,8 @@ export default function OrderManagement() {
               <SelectItem value="shipped">Shipped</SelectItem>
               <SelectItem value="delivered">Delivered</SelectItem>
               <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="refunded">Refunded</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -232,14 +242,19 @@ export default function OrderManagement() {
                           <SelectItem value="shipped">Shipped</SelectItem>
                           <SelectItem value="delivered">Delivered</SelectItem>
                           <SelectItem value="cancelled">Cancelled</SelectItem>
+                          <SelectItem value="refunded">Refunded</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm">
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Details
-                      </Button>
+                      {/* FIX: Link to the new admin order details page */}
+                      <Link href={`/admin/orders/details/${order._id}`}>
+                        <Button variant="ghost" size="sm">
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </Button>
+                      </Link>
                     </TableCell>
                   </TableRow>
                 ))

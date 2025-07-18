@@ -163,7 +163,7 @@ export default function NewThemedBox() {
       };
 
       // 3. Create themed box via API
-      const { data } = await axios.post("/api/themed-boxes", finalBoxData);
+      const { data } = await axios.post("/api/admin/themed-boxes", finalBoxData);
       if (!data.success) {
         throw new Error(data.message || "Failed to create themed box");
       }
