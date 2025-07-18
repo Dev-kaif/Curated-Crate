@@ -47,7 +47,7 @@ export const OurStorySection = () => {
               gifting personal, meaningful, and effortless.
             </p>
             <Link href="/about">
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-full">
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 mt-10 rounded-full">
                 Learn More About Us
               </Button>
             </Link>

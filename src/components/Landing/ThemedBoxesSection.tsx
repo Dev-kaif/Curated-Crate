@@ -23,7 +23,7 @@ export const ThemedBoxesSection = () => {
         // Format the data to match the frontend type structure
         const formattedThemes = data.map((box: any) => ({
           ...box,
-          id: box._id, // Map MongoDB's _id to id
+          id: box._id,
         }));
         setThemes(formattedThemes);
       } catch (error) {
@@ -49,7 +49,7 @@ export const ThemedBoxesSection = () => {
           <h2 className="text-4xl lg:text-5xl font-serif font-bold text-foreground mb-4">
             Need Inspiration? Start with a Theme
           </h2>
-          <Link href="/themed-boxes">
+          <Link href="/themed">
             <Button className="mt-4 bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-full">
               View All Themed Boxes
             </Button>
@@ -76,7 +76,7 @@ export const ThemedBoxesSection = () => {
                 viewport={{ once: true }}
                 className="group"
               >
-                <Link href={`/themed-boxes/${theme.id}`}>
+                <Link href={`/themed/details/${theme.id}`}>
                   <Card className="overflow-hidden bg-background border-0 shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-105 transform">
                     <div className="aspect-square bg-gradient-to-br from-primary/10 to-primary/5 relative overflow-hidden">
                       <img
