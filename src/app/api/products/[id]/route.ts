@@ -4,7 +4,6 @@ import Product from "@/backend/models/Product";
 import { authenticateAndAuthorize } from "@/backend/lib/auth";
 import mongoose from "mongoose";
 
-// ✅ FIX: Updated function signature to the Next.js standard
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }

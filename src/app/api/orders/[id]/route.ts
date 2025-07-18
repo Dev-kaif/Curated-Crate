@@ -13,7 +13,7 @@ export async function GET(request: NextRequest, context: any) {
   const authenticatedUser = authResult.user!;
 
   await dbConnect();
-  const { id } = await context.params; 
+  const { id } = await context.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
@@ -65,7 +65,7 @@ export async function PUT(request: NextRequest, context: any) {
   if (authResult.response) return authResult.response;
 
   await dbConnect();
-  const { id } = await context.params; 
+  const { id } = await context.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
@@ -134,14 +134,14 @@ export async function PUT(request: NextRequest, context: any) {
   }
 }
 
-// ORDER CANCLEING 
+// ORDER CANCLEING
 export async function DELETE(request: NextRequest, context: any) {
   const authResult = await authenticateAndAuthorize(request); // Authenticate any logged-in user
   if (authResult.response) return authResult.response;
   const authenticatedUser = authResult.user!;
 
   await dbConnect();
-  const { id } = await context.params; 
+  const { id } = await context.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
@@ -168,7 +168,8 @@ export async function DELETE(request: NextRequest, context: any) {
       return NextResponse.json(
         {
           success: false,
-          message: "Forbidden. You do not have permission to delete this order.",
+          message:
+            "Forbidden. You do not have permission to delete this order.",
         },
         { status: 403 }
       );
@@ -176,7 +177,7 @@ export async function DELETE(request: NextRequest, context: any) {
 
     // Business Logic: Define statuses where "deletion" (cancellation) is allowed
     // 'pending' and 'processing' are common cancellable states
-    const cancellableStatuses: OrderStatus[] = ['pending', 'processing'];
+    const cancellableStatuses: OrderStatus[] = ["pending", "processing"];
 
     if (!cancellableStatuses.includes(order.orderStatus)) {
       return NextResponse.json(
@@ -189,16 +190,19 @@ export async function DELETE(request: NextRequest, context: any) {
     }
 
     // Update order status to 'cancelled' (logical deletion)
-    order.orderStatus = 'cancelled';
+    order.orderStatus = "cancelled";
     order.updatedAt = new Date(); // Update the updatedAt timestamp
 
     await order.save(); // Save the updated order document
 
     return NextResponse.json(
-      { success: true, message: "Order deleted (cancelled) successfully.", data: order },
+      {
+        success: true,
+        message: "Order deleted (cancelled) successfully.",
+        data: order,
+      },
       { status: 200 }
     );
-
   } catch (error: any) {
     console.error("Error deleting (cancelling) order:", error);
     if (error.name === "ValidationError") {
