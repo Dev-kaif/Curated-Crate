@@ -6,39 +6,68 @@ import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Product } from "@/contexts/store-context"; // Assuming your Product type is here
+import axios from "axios"; // Import axios
 
 export const FeaturedItemsSection = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null); // Added error state
 
   useEffect(() => {
     const fetchFeaturedProducts = async () => {
+      setIsLoading(true);
+      setError(null); // Clear previous errors
       try {
-        // Fetch the 10 newest products from the updated backend API
-        const res = await fetch("/api/products?sort=newest&limit=10");
-        if (!res.ok) {
-          throw new Error("Failed to fetch products");
+        // Use axios to make the GET request
+        const response = await axios.get("/api/products", {
+          params: {
+            sort: "popularity", // Using 'popularity' or 'newest' as desired
+            limit: 10,
+          },
+        });
+
+        // Backend /api/products returns an object with products array
+        if (response.data && Array.isArray(response.data.products)) {
+          const formattedProducts = response.data.products.map((p: any) => ({
+            ...p,
+            id: p._id, // Map MongoDB's _id to id
+            imageUrl: p.images?.[0] || "/placeholder.svg", // FIX: Correctly map imageUrl from the images array
+          }));
+          setProducts(formattedProducts);
+        } else {
+          throw new Error("Received invalid data structure from server.");
         }
-        const data = await res.json();
-        // The backend returns an object with an `id` field (_id), so we map it
-        const formattedProducts = data.map((p: any) => ({
-          ...p,
-          id: p._id,
-          image: p.images[0],
-        }));
-        setProducts(formattedProducts);
-      } catch (error) {
-        console.error(error);
+      } catch (err: any) {
+        console.error("Error fetching featured products:", err);
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            "Failed to load featured products."
+        );
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchFeaturedProducts();
-  }, []);
+  }, []); // Empty dependency array means this runs once on mount
 
   // Duplicate the products array to create a seamless loop for the marquee
-  const marqueeProducts = [...products, ...products];
+  // Only duplicate if products are loaded to avoid issues with empty array
+  const marqueeProducts = products.length > 0 ? [...products, ...products] : [];
+
+  if (error) {
+    return (
+      <section className="py-20 px-6">
+        <div className="container mx-auto text-center">
+          <h2 className="text-2xl font-serif text-destructive mb-4">
+            Error Loading Products
+          </h2>
+          <p className="text-foreground/70">{error}</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="py-20 px-6">
@@ -89,12 +118,17 @@ export const FeaturedItemsSection = () => {
               }}
             >
               {marqueeProducts.map((product, index) => (
+                // FIX: Wrap the entire Card with Link for full clickability
                 <div key={index} className="flex-shrink-0 w-64 mx-3">
-                  <Link href={`/shop/details/${product.id}`}>
-                    <Card className="overflow-hidden bg-background border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
+                  <Link href={`/shop/details/${product.id}`} passHref>
+                    {" "}
+                    {/* Use passHref */}
+                    <Card className="overflow-hidden bg-background border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 cursor-pointer">
+                      {" "}
+                      {/* Added cursor-pointer */}
                       <div className="aspect-square bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
                         <img
-                          src={product.images[0] || "/placeholder.svg"}
+                          src={product.imageUrl || "/placeholder.svg"} // Use product.imageUrl
                           alt={product.name}
                           className="w-full h-full object-cover"
                         />

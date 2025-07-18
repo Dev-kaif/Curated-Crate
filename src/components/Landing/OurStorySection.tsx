@@ -19,7 +19,7 @@ export const OurStorySection = () => {
           >
             <div className="aspect-[4/3] bg-gradient-to-br from-primary/20 to-primary/10 rounded-3xl overflow-hidden">
               <img
-                src="/placeholder.svg?height=400&width=500"
+                src="/ourStory.png"
                 alt="Gift box being packed"
                 className="w-full h-full object-cover"
               />
