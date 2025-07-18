@@ -39,10 +39,9 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
-  
-  
+
   useEffect(() => {
-    if (status === "loading") return; 
+    if (status === "loading") return;
     if (status === "unauthenticated" || session?.user?.role !== "admin") {
       router.push("/admin/login");
     }
@@ -64,9 +63,18 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
 
   const Sidebar = ({ className = "" }: { className?: string }) => (
     <div className={`flex flex-col h-full bg-white border-r ${className}`}>
-      <div className="p-6 border-b">
-        <h2 className="text-xl font-bold text-gray-900">Curated Crate</h2>
-        <p className="text-sm text-gray-500">Admin Panel</p>
+      <div className="p-6 border-b text-center">
+        <h2 className="text-xl font-bold text-gray-900">
+          <div className="flex gap-1 items-center">
+            <img
+              src="/logo.png"
+              alt="Curated Crate Logo"
+              className="h-8 w-auto"
+            />
+            <span> Curated Crate</span>
+          </div>
+        </h2>
+        <span className="text-sm text-gray-500">Admin Panel</span>
       </div>
 
       <nav className="flex-1 p-4 space-y-2">
