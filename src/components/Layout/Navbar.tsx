@@ -9,12 +9,12 @@ import { Search, Heart, ShoppingBag, User, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/contexts/store-context";
-import { SearchOverlay } from "./search-overlay"; 
+import { SearchOverlay } from "./search-overlay";
 
 export const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSearchOverlayOpen, setIsSearchOverlayOpen] = useState(false); 
+  const [isSearchOverlayOpen, setIsSearchOverlayOpen] = useState(false);
   const { state } = useStore();
   const router = useRouter();
   const pathname = usePathname();
@@ -75,10 +75,15 @@ export const Navigation = () => {
               transition={{ delay: 0.2 }}
             >
               <Link
+                className="text-2xl font-serif font-bold text-foreground hover:text-primary transition-colors flex gap-3 items-center"
                 href="/"
-                className="text-2xl font-serif font-bold text-foreground hover:text-primary transition-colors"
               >
-                Curated Crate
+                <img
+                  src="/logo.png"
+                  alt="Curated Crate Logo"
+                  className="h-8 w-auto"
+                />
+                <span> Curated Crate</span>
               </Link>
             </motion.div>
 
