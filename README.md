@@ -2,6 +2,8 @@
 
 Curated Crate is a modern e-commerce platform for creating and purchasing personalized gift boxes. It allows users to select from a variety of artisanal products to build their own unique "crate" or choose from pre-designed themed boxes. The platform is built with a focus on a clean, user-friendly interface and a robust backend to handle products, orders, and user accounts.
 
+---
+
 ## Live Demo
 
 - **Website:** [https://curated-crate.vercel.app](https://curated-crate.vercel.app)
@@ -16,11 +18,23 @@ Curated Crate is a modern e-commerce platform for creating and purchasing person
   - **Email:** `user@gmail.com`
   - **Password:** `user1234`
 
+---
+
 ## Demo Image :
 
 ### user :
 
 ![public/demo/User/1.png](public/demo/User/1.png)
+![public/demo/User/2.png](public/demo/User/2.png)
+![public/demo/User/3.png](public/demo/User/3.png)
+
+### Admin :
+
+![public/demo/Admin/1.png](public/demo/Admin/1.png)
+![public/demo/Admin/2.png](public/demo/Admin/2.png)
+![public/demo/Admin/3.png](public/demo/Admin/3.png)
+
+---
 
 **Homepage:**
 
@@ -46,6 +60,8 @@ Curated Crate is a modern e-commerce platform for creating and purchasing person
   - Analytics and reporting
   - Coupouns Creation
 
+---
+
 ## Tech Stack
 
 - **Framework:** [Next.js](https://nextjs.org/)
@@ -54,6 +70,8 @@ Curated Crate is a modern e-commerce platform for creating and purchasing person
 - **Database:** [MongoDB](https://www.mongodb.com/) with [Mongoose](https://mongoosejs.com/)
 - **Authentication:** [NextAuth.js](https://next-auth.js.org/)
 - **Animations:** [Framer Motion](https://www.framer.com/motion/)
+
+---
 
 ## Getting Started
 
@@ -70,8 +88,8 @@ Follow these instructions to get a copy of the project up and running on your lo
 1.  **Clone the repository:**
 
     ```bash
-    git clone https://github.com/your-username/curated-crate.git
-    cd curated-crate
+    git clone https://github.com/Dev-kaif/Curated-Crate.git
+    cd Curated-Crate
     ```
 
 2.  **Install dependencies:**
