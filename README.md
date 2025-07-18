@@ -20,7 +20,7 @@ Curated Crate is a modern e-commerce platform for creating and purchasing person
 
 ### user :
 
-![/demo/User/1.png](/demo/User/1.png)
+![public/demo/User/1.png](public/demo/User/1.png)
 
 **Homepage:**
 
