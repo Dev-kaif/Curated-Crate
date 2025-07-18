@@ -27,6 +27,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="shortcut icon" href="/logo.png" type="image/x-icon" />
+      </head>
       <body className={`${playfair.variable} ${inter.variable} font-sans`}>
         <Session>
           <StoreProvider>{children}</StoreProvider>
