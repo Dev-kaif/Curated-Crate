@@ -333,7 +333,8 @@ export default function ProductManagement() {
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
                                   onClick={() =>
-                                    handleDeleteProduct(product._id as string)
+                                    console.log("deleted")
+                                    // handleDeleteProduct(product._id as string)
                                   }
                                 >
                                   Delete

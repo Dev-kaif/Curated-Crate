@@ -239,7 +239,8 @@ export default function ThemedBoxManagement() {
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
                                   onClick={() =>
-                                    handleDelete(box._id as string)
+                                    console.log("deleted")
+                                    // handleDelete(box._id as string)
                                   }
                                 >
                                   Delete
